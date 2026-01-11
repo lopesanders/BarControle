@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Camera, CheckCircle2, Settings, X, Pencil, Copy, Maximize2 } from 'lucide-react';
+import { Plus, Trash2, Camera, CheckCircle2, Settings, X, Pencil, Copy, Maximize2, Loader2 } from 'lucide-react';
 import { ConsumptionItem, ConsumptionSession } from '../types';
 import ProgressBar from './ProgressBar';
 
@@ -24,6 +24,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
   const [isFinishing, setIsFinishing] = useState(false);
   const [isConfiguringBudget, setIsConfiguringBudget] = useState(false);
   const [fullscreenPhoto, setFullscreenPhoto] = useState<string | null>(null);
+  const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
 
   const [newItemName, setNewItemName] = useState('');
   const [newItemPrice, setNewItemPrice] = useState('');
@@ -45,7 +46,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
 
   const handleSaveItem = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newItemName || !newItemPrice) return;
+    if (!newItemName || !newItemPrice || isProcessingPhoto) return;
 
     if (editingItem) {
       setItems(prev => prev.map(item => 
@@ -77,6 +78,81 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
     setNewItemName('');
     setNewItemPrice('');
     setNewItemPhoto(undefined);
+    setIsProcessingPhoto(false);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsProcessingPhoto(true);
+
+    const reader = new FileReader();
+    
+    reader.onerror = () => {
+      alert("Erro ao ler arquivo da câmera");
+      setIsProcessingPhoto(false);
+    };
+
+    reader.onload = (event) => {
+      try {
+        const base64 = event.target?.result as string;
+        const img = new Image();
+        
+        img.onerror = () => {
+          alert("Erro ao carregar imagem no processador");
+          setIsProcessingPhoto(false);
+        };
+
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            // Dimensão reduzida para 480px garante estabilidade no Android/APK
+            const MAX_DIM = 480; 
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+              if (width > MAX_DIM) {
+                height *= MAX_DIM / width;
+                width = MAX_DIM;
+              }
+            } else {
+              if (height > MAX_DIM) {
+                width *= MAX_DIM / height;
+                height = MAX_DIM;
+              }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            
+            if (ctx) {
+              ctx.imageSmoothingEnabled = true;
+              ctx.imageSmoothingQuality = 'high';
+              ctx.drawImage(img, 0, 0, width, height);
+              
+              // Qualidade 0.5 gera arquivos leves (~30-50kb) perfeitos para APK
+              const dataUrl = canvas.toDataURL('image/jpeg', 0.5);
+              setNewItemPhoto(dataUrl);
+            }
+            setIsProcessingPhoto(false);
+            // Resetar o input para permitir capturar a mesma foto se necessário
+            e.target.value = ""; 
+          } catch (err) {
+            alert("Erro no redimensionamento da imagem");
+            setIsProcessingPhoto(false);
+          }
+        };
+        img.src = base64;
+      } catch (err) {
+        alert("Erro no processamento base64");
+        setIsProcessingPhoto(false);
+      }
+    };
+    
+    reader.readAsDataURL(file);
   };
 
   const removeItem = (e: React.MouseEvent, id: string) => {
@@ -115,49 +191,6 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
     setIsFinishing(false);
     setSplitCount(1);
     setIncludeTip(false);
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // FileReader é mais compatível com WebViews/APK do que URL.createObjectURL
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string;
-      
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const MAX_DIM = 800;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > MAX_DIM) {
-            height *= MAX_DIM / width;
-            width = MAX_DIM;
-          }
-        } else {
-          if (height > MAX_DIM) {
-            width *= MAX_DIM / height;
-            height = MAX_DIM;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-          // Qualidade 0.6 é o equilíbrio ideal para APK e armazenamento local
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
-          setNewItemPhoto(dataUrl);
-        }
-      };
-      img.src = base64;
-    };
-    reader.readAsDataURL(file);
   };
 
   const openFullscreen = (e: React.MouseEvent, photo: string) => {
@@ -208,7 +241,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
                 onClick={() => setEditingItem(item)}
               >
                 <div 
-                  className="w-14 h-14 rounded-xl overflow-hidden bg-gray-100 dark:bg-dark-bg shrink-0 relative group"
+                  className="w-14 h-14 rounded-xl overflow-hidden bg-gray-100 dark:bg-dark-bg shrink-0 relative group shadow-inner"
                   onClick={(e) => item.photo && openFullscreen(e, item.photo)}
                 >
                   {item.photo ? (
@@ -237,13 +270,13 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
                   <div className="flex -mr-2">
                     <button 
                       onClick={(e) => duplicateItem(e, item)}
-                      className="p-3 text-gray-300 dark:text-gray-600 active:text-blue-500"
+                      className="p-3 text-gray-300 dark:text-gray-600 active:text-blue-500 transition-colors"
                     >
                       <Copy size={18} />
                     </button>
                     <button 
                       onClick={(e) => removeItem(e, item.id)}
-                      className="p-3 text-gray-300 dark:text-gray-600 active:text-red-500"
+                      className="p-3 text-gray-300 dark:text-gray-600 active:text-red-500 transition-colors"
                     >
                       <Trash2 size={18} />
                     </button>
@@ -270,7 +303,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
           <div className="w-full h-full flex items-center justify-center">
              <img 
                 src={fullscreenPhoto} 
-                className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl animate-in zoom-in-95 duration-300"
+                className="max-w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl animate-in zoom-in-95 duration-300"
                 alt="Foto em tela cheia"
               />
           </div>
@@ -335,9 +368,14 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center gap-5 p-4 bg-gray-50 dark:bg-dark-bg rounded-2xl">
-                <div className="relative w-24 h-24 bg-white dark:bg-dark-card rounded-2xl border-2 border-dashed border-gray-200 dark:border-dark-border flex items-center justify-center overflow-hidden">
-                  {newItemPhoto ? (
+              <div className="flex items-center gap-5 p-4 bg-gray-50 dark:bg-dark-bg rounded-2xl relative overflow-hidden">
+                <div className={`relative w-24 h-24 bg-white dark:bg-dark-card rounded-2xl border-2 border-dashed flex items-center justify-center overflow-hidden transition-colors ${isProcessingPhoto ? 'border-blue-500' : 'border-gray-200 dark:border-dark-border'}`}>
+                  {isProcessingPhoto ? (
+                    <div className="flex flex-col items-center gap-2">
+                       <Loader2 className="text-blue-500 animate-spin" size={24} />
+                       <span className="text-[8px] font-black text-blue-500 uppercase">Processando</span>
+                    </div>
+                  ) : newItemPhoto ? (
                     <img src={newItemPhoto} className="w-full h-full object-cover" alt="Preview" />
                   ) : (
                     <Camera className="text-gray-300 dark:text-gray-600" />
@@ -347,18 +385,19 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
                     accept="image/*" 
                     capture="environment"
                     onChange={handleFileChange}
-                    className="absolute inset-0 opacity-0 cursor-pointer"
+                    className="absolute inset-0 opacity-0 cursor-pointer disabled:pointer-events-none"
+                    disabled={isProcessingPhoto}
                   />
                 </div>
                 <div className="flex-1">
                   <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed font-medium">
-                    {newItemPhoto ? 'Foto adicionada!' : 'Toque no quadrado para fotografar seu pedido.'}
+                    {isProcessingPhoto ? 'Aguarde um instante...' : newItemPhoto ? 'Foto adicionada!' : 'Toque no quadrado para fotografar seu pedido.'}
                   </p>
-                  {newItemPhoto && (
+                  {newItemPhoto && !isProcessingPhoto && (
                     <button 
                       type="button" 
                       onClick={() => setNewItemPhoto(undefined)}
-                      className="text-[10px] font-bold text-red-500 uppercase mt-2"
+                      className="text-[10px] font-bold text-red-500 uppercase mt-2 active:opacity-50"
                     >
                       Remover Foto
                     </button>
@@ -368,9 +407,10 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
 
               <button 
                 type="submit"
-                className={`w-full h-16 text-white rounded-2xl shadow-lg font-black uppercase tracking-widest active:scale-95 transition-transform ${editingItem ? 'bg-amber-600' : 'bg-blue-600'}`}
+                disabled={isProcessingPhoto}
+                className={`w-full h-16 text-white rounded-2xl shadow-lg font-black uppercase tracking-widest active:scale-95 transition-transform disabled:opacity-50 disabled:scale-100 ${editingItem ? 'bg-amber-600' : 'bg-blue-600'}`}
               >
-                {editingItem ? 'Confirmar Edição' : 'Salvar Pedido'}
+                {isProcessingPhoto ? 'Aguarde...' : editingItem ? 'Confirmar Edição' : 'Salvar Pedido'}
               </button>
             </form>
           </div>
