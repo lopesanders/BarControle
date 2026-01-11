@@ -87,7 +87,6 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
 
     setIsProcessingPhoto(true);
 
-    // Técnica de ObjectURL: muito mais leve para memória do que FileReader Base64
     const objectUrl = URL.createObjectURL(file);
     const img = new Image();
     
@@ -96,7 +95,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
     img.onload = () => {
       try {
         const canvas = document.createElement('canvas');
-        const MAX_DIM = 400; // Aumentado levemente de 320 para 400 para melhor visualização
+        const MAX_DIM = 400; 
         let width = img.width;
         let height = img.height;
 
@@ -117,14 +116,19 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
         const ctx = canvas.getContext('2d');
         
         if (ctx) {
+          // IMPORTANTE: Preencher com fundo branco. 
+          // JPEGs gerados a partir de canvas transparente em alguns Androids ficam pretos.
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, width, height);
+          
           ctx.drawImage(img, 0, 0, width, height);
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.5); // Qualidade 0.5 é o sweet spot
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.6); 
           
           if (dataUrl && dataUrl.startsWith('data:image')) {
             setNewItemPhoto(dataUrl);
           } else {
-            console.error("DataURL inválido gerado");
-            alert("Erro ao processar imagem final.");
+            console.error("Erro ao gerar dataUrl do canvas");
+            alert("Erro ao processar a imagem tirada.");
           }
         }
       } catch (err) {
@@ -132,7 +136,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
         alert("O celular não conseguiu processar a imagem.");
       } finally {
         setIsProcessingPhoto(false);
-        URL.revokeObjectURL(objectUrl); // Libera memória IMEDIATAMENTE
+        URL.revokeObjectURL(objectUrl);
         e.target.value = ""; 
       }
     };
