@@ -7,10 +7,10 @@ import {
   Sun, 
   Moon
 } from 'lucide-react';
-import { ConsumptionItem, ConsumptionSession, View } from './types';
-import ConsumptionView from './components/ConsumptionView';
-import HistoryView from './components/HistoryView';
-import HelpView from './components/HelpView';
+import { ConsumptionItem, ConsumptionSession, View } from './types.ts';
+import ConsumptionView from './components/ConsumptionView.tsx';
+import HistoryView from './components/HistoryView.tsx';
+import HelpView from './components/HelpView.tsx';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('active');
