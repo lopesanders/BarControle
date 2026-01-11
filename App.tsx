@@ -4,13 +4,8 @@ import {
   Beer, 
   History, 
   HelpCircle, 
-  Plus, 
-  X, 
-  Camera, 
-  Trash2, 
-  CheckCircle2, 
-  ChevronRight,
-  Info
+  Sun, 
+  Moon
 } from 'lucide-react';
 import { ConsumptionItem, ConsumptionSession, View } from './types';
 import ConsumptionView from './components/ConsumptionView';
@@ -22,20 +17,35 @@ const App: React.FC = () => {
   const [activeItems, setActiveItems] = useState<ConsumptionItem[]>([]);
   const [history, setHistory] = useState<ConsumptionSession[]>([]);
   const [budgetLimit, setBudgetLimit] = useState<number>(300);
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    const saved = localStorage.getItem('bar_theme');
+    if (saved) return saved === 'dark';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
 
-  // Persistence
+  // Persistence com tratamento de erro de cota (Android Quota Check)
   useEffect(() => {
-    const savedItems = localStorage.getItem('bar_active_items');
-    const savedHistory = localStorage.getItem('bar_history');
-    const savedBudget = localStorage.getItem('bar_budget_limit');
+    try {
+      const savedItems = localStorage.getItem('bar_active_items');
+      const savedHistory = localStorage.getItem('bar_history');
+      const savedBudget = localStorage.getItem('bar_budget_limit');
 
-    if (savedItems) setActiveItems(JSON.parse(savedItems));
-    if (savedHistory) setHistory(JSON.parse(savedHistory));
-    if (savedBudget) setBudgetLimit(Number(savedBudget));
+      if (savedItems) setActiveItems(JSON.parse(savedItems));
+      if (savedHistory) setHistory(JSON.parse(savedHistory));
+      if (savedBudget) setBudgetLimit(Number(savedBudget));
+    } catch (e) {
+      console.warn("Erro ao carregar dados do localStorage", e);
+    }
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('bar_active_items', JSON.stringify(activeItems));
+    try {
+      localStorage.setItem('bar_active_items', JSON.stringify(activeItems));
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+        alert("Memória cheia! Tente remover fotos ou finalizar a conta.");
+      }
+    }
   }, [activeItems]);
 
   useEffect(() => {
@@ -45,6 +55,15 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('bar_budget_limit', budgetLimit.toString());
   }, [budgetLimit]);
+
+  useEffect(() => {
+    localStorage.setItem('bar_theme', isDarkMode ? 'dark' : 'light');
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
 
   const handleFinishSession = (session: ConsumptionSession) => {
     setHistory(prev => [session, ...prev]);
@@ -59,25 +78,32 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen max-w-md mx-auto bg-gray-50 overflow-hidden shadow-2xl relative">
+    <div className={`flex flex-col h-[100dvh] max-w-md mx-auto overflow-hidden relative theme-transition ${isDarkMode ? 'bg-dark-bg text-gray-100' : 'bg-gray-50 text-gray-800'}`}>
       {/* Header */}
-      <header className="bg-white border-b px-6 py-4 flex justify-between items-center shrink-0">
-        <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-          <Beer className="text-blue-600" />
-          BarControl
+      <header className="bg-white dark:bg-dark-card border-b border-gray-100 dark:border-dark-border px-6 py-4 flex justify-between items-center shrink-0 z-10">
+        <h1 className="text-xl font-black flex items-center gap-2">
+          <Beer className="text-blue-600 dark:text-blue-400" />
+          <span className="dark:text-white tracking-tight">Quanto Deu?</span>
         </h1>
-        <div className="flex gap-4">
+        <div className="flex gap-2">
+          <button 
+            onClick={() => setIsDarkMode(!isDarkMode)}
+            className="p-3 rounded-full text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-border transition-colors active:scale-90"
+            aria-label="Alternar tema"
+          >
+            {isDarkMode ? <Sun size={20} className="text-yellow-400" /> : <Moon size={20} />}
+          </button>
           <button 
             onClick={() => setCurrentView('help')}
-            className={`p-2 rounded-full transition-colors ${currentView === 'help' ? 'bg-blue-100 text-blue-600' : 'text-gray-400'}`}
+            className={`p-3 rounded-full transition-colors active:scale-90 ${currentView === 'help' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'text-gray-400'}`}
           >
-            <HelpCircle size={24} />
+            <HelpCircle size={22} />
           </button>
         </div>
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto pb-24">
+      <main className="flex-1 overflow-y-auto pb-32">
         {currentView === 'active' && (
           <ConsumptionView 
             items={activeItems} 
@@ -99,21 +125,21 @@ const App: React.FC = () => {
       </main>
 
       {/* Navigation Bar */}
-      <nav className="absolute bottom-0 left-0 right-0 bg-white border-t flex justify-around items-center py-3 safe-bottom shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
+      <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/95 dark:bg-dark-card/95 backdrop-blur-md border-t border-gray-100 dark:border-dark-border flex justify-around items-center py-3 safe-bottom z-40">
         <button 
           onClick={() => setCurrentView('active')}
-          className={`flex flex-col items-center gap-1 transition-colors ${currentView === 'active' ? 'text-blue-600' : 'text-gray-400'}`}
+          className={`flex flex-col items-center gap-1 transition-colors min-w-[80px] ${currentView === 'active' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`}
         >
           <Beer size={24} />
-          <span className="text-xs font-medium">Consumo</span>
+          <span className="text-[10px] font-bold uppercase">Consumo</span>
         </button>
         
         <button 
           onClick={() => setCurrentView('history')}
-          className={`flex flex-col items-center gap-1 transition-colors ${currentView === 'history' ? 'text-blue-600' : 'text-gray-400'}`}
+          className={`flex flex-col items-center gap-1 transition-colors min-w-[80px] ${currentView === 'history' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`}
         >
           <History size={24} />
-          <span className="text-xs font-medium">Histórico</span>
+          <span className="text-[10px] font-bold uppercase">Histórico</span>
         </button>
       </nav>
     </div>

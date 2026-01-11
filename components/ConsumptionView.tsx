@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { Plus, Trash2, Camera, CheckCircle2, Settings, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Trash2, Camera, CheckCircle2, Settings, X, Pencil, Copy } from 'lucide-react';
 import { ConsumptionItem, ConsumptionSession } from '../types';
 import ProgressBar from './ProgressBar';
 
@@ -20,6 +20,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
   onFinish 
 }) => {
   const [isAdding, setIsAdding] = useState(false);
+  const [editingItem, setEditingItem] = useState<ConsumptionItem | null>(null);
   const [isFinishing, setIsFinishing] = useState(false);
   const [isConfiguringBudget, setIsConfiguringBudget] = useState(false);
 
@@ -32,27 +33,42 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
 
   const total = items.reduce((acc, item) => acc + item.price, 0);
 
-  const getHeaderBg = () => {
-    const percentage = (total / budgetLimit) * 100;
-    if (percentage < 50) return 'bg-green-50';
-    if (percentage < 90) return 'bg-yellow-50';
-    return 'bg-red-50';
-  };
+  useEffect(() => {
+    if (editingItem) {
+      setNewItemName(editingItem.name);
+      setNewItemPrice(editingItem.price.toString());
+      setNewItemPhoto(editingItem.photo);
+      setIsAdding(true);
+    }
+  }, [editingItem]);
 
-  const handleAddItem = (e: React.FormEvent) => {
+  const handleSaveItem = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newItemName || !newItemPrice) return;
 
-    const item: ConsumptionItem = {
-      id: Date.now().toString(),
-      name: newItemName,
-      price: parseFloat(newItemPrice),
-      timestamp: Date.now(),
-      photo: newItemPhoto
-    };
+    if (editingItem) {
+      setItems(prev => prev.map(item => 
+        item.id === editingItem.id 
+          ? { ...item, name: newItemName, price: parseFloat(newItemPrice), photo: newItemPhoto }
+          : item
+      ));
+    } else {
+      const item: ConsumptionItem = {
+        id: Date.now().toString(),
+        name: newItemName,
+        price: parseFloat(newItemPrice),
+        timestamp: Date.now(),
+        photo: newItemPhoto
+      };
+      setItems(prev => [item, ...prev]);
+    }
 
-    setItems(prev => [item, ...prev]);
+    closeModal();
+  };
+
+  const closeModal = () => {
     setIsAdding(false);
+    setEditingItem(null);
     resetForm();
   };
 
@@ -62,23 +78,24 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
     setNewItemPhoto(undefined);
   };
 
-  const removeItem = (id: string) => {
+  const removeItem = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
     if (window.confirm('Remover este item?')) {
       setItems(prev => prev.filter(i => i.id !== id));
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setNewItemPhoto(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
+  const duplicateItem = (e: React.MouseEvent, item: ConsumptionItem) => {
+    e.stopPropagation();
+    const newItem: ConsumptionItem = {
+      ...item,
+      id: (Date.now() + Math.random()).toString(),
+      timestamp: Date.now(),
+    };
+    setItems(prev => [newItem, ...prev]);
   };
 
+  // Fix: Implemented finishSession to finalize the account and call onFinish
   const finishSession = () => {
     const tipAmount = includeTip ? total * 0.1 : 0;
     const finalTotal = total + tipAmount;
@@ -93,25 +110,54 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
       tipAmount: tipAmount,
       totalPerPerson: finalTotal / splitCount
     };
-
+    
     onFinish(session);
     setIsFinishing(false);
+    setSplitCount(1);
+    setIncludeTip(false);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Redimensionamento básico no client-side para Android não estourar storage
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const img = new Image();
+        img.src = reader.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 400;
+          const scaleSize = MAX_WIDTH / img.width;
+          canvas.width = MAX_WIDTH;
+          canvas.height = img.height * scaleSize;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+          setNewItemPhoto(canvas.toDataURL('image/jpeg', 0.7)); // Salva em JPEG comprimido
+        };
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 space-y-6">
       {/* Budget Summary Card */}
-      <div className={`p-6 rounded-3xl shadow-sm border transition-colors duration-500 ${getHeaderBg()}`}>
+      <div className={`p-5 rounded-[2rem] shadow-lg border-2 theme-transition ${
+        (total / budgetLimit) >= 0.9 ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' :
+        (total / budgetLimit) >= 0.5 ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800' :
+        'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+      }`}>
         <div className="flex justify-between items-start mb-4">
           <div>
-            <p className="text-sm font-medium text-gray-500 mb-1">Gasto Total</p>
-            <h2 className="text-4xl font-extrabold text-gray-900">
+            <p className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-1">Gasto Atual</p>
+            <h2 className="text-3xl font-black tracking-tight text-gray-900 dark:text-white">
               {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total)}
             </h2>
           </div>
           <button 
             onClick={() => setIsConfiguringBudget(true)}
-            className="p-2 bg-white rounded-xl shadow-sm text-gray-400 hover:text-blue-600 transition-colors"
+            className="p-3 bg-white/80 dark:bg-dark-border/50 backdrop-blur rounded-2xl shadow-sm text-gray-500 active:scale-90 transition-transform"
           >
             <Settings size={20} />
           </button>
@@ -121,43 +167,54 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
 
       {/* Items List */}
       <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <h3 className="text-lg font-bold text-gray-800">Itens Consumidos</h3>
-          <span className="text-sm text-gray-400 font-medium">{items.length} {items.length === 1 ? 'item' : 'itens'}</span>
-        </div>
-
+        <h3 className="text-sm font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 px-1">Seu Consumo</h3>
+        
         {items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-gray-400 bg-white rounded-2xl border-2 border-dashed border-gray-100">
-            <BeerIcon className="w-12 h-12 mb-3 opacity-20" />
-            <p className="text-sm">Nenhum item adicionado ainda.</p>
+          <div className="flex flex-col items-center justify-center py-16 text-gray-400 dark:text-gray-600">
+            <BeerIcon className="opacity-10 mb-4" size={64} />
+            <p className="text-sm font-medium">Bora começar o round?</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-3 pb-32">
             {items.map(item => (
-              <div key={item.id} className="bg-white p-4 rounded-2xl shadow-sm border flex items-center gap-4 group animate-in fade-in slide-in-from-bottom-2 duration-300">
-                {item.photo ? (
-                  <img src={item.photo} alt={item.name} className="w-12 h-12 rounded-xl object-cover shrink-0" />
-                ) : (
-                  <div className="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center text-gray-300 shrink-0">
-                    <BeerIcon size={20} />
-                  </div>
-                )}
+              <div 
+                key={item.id} 
+                onClick={() => setEditingItem(item)}
+                className="bg-white dark:bg-dark-card p-4 rounded-2xl border border-gray-100 dark:border-dark-border flex items-center gap-4 active:bg-gray-50 dark:active:bg-dark-bg transition-colors"
+              >
+                <div className="w-14 h-14 rounded-xl overflow-hidden bg-gray-100 dark:bg-dark-bg shrink-0">
+                  {item.photo ? (
+                    <img src={item.photo} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-300 dark:text-gray-700">
+                      <BeerIcon size={24} />
+                    </div>
+                  )}
+                </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-bold text-gray-800 truncate">{item.name}</h4>
-                  <p className="text-xs text-gray-400">
+                  <h4 className="font-bold text-gray-800 dark:text-gray-100 truncate">{item.name}</h4>
+                  <p className="text-[10px] text-gray-400 uppercase font-bold">
                     {new Date(item.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
-                <div className="text-right flex items-center gap-3">
-                  <span className="font-bold text-blue-600">
+                <div className="flex flex-col items-end gap-1">
+                  <span className="font-black text-blue-600 dark:text-blue-400">
                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price)}
                   </span>
-                  <button 
-                    onClick={() => removeItem(item.id)}
-                    className="p-2 text-gray-300 hover:text-red-500 transition-colors"
-                  >
-                    <Trash2 size={18} />
-                  </button>
+                  <div className="flex -mr-2">
+                    <button 
+                      onClick={(e) => duplicateItem(e, item)}
+                      className="p-3 text-gray-300 dark:text-gray-600 active:text-blue-500"
+                    >
+                      <Copy size={18} />
+                    </button>
+                    <button 
+                      onClick={(e) => removeItem(e, item.id)}
+                      className="p-3 text-gray-300 dark:text-gray-600 active:text-red-500"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -165,205 +222,182 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
         )}
       </div>
 
-      {/* Action Buttons */}
-      <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-full max-w-md px-6 flex gap-3 pointer-events-none">
+      {/* Floating Action Buttons - Optimized for Android Navigation Bar */}
+      <div className="fixed bottom-24 left-0 right-0 max-w-md mx-auto px-6 flex gap-3 z-30 pointer-events-none">
         <button 
           onClick={() => setIsAdding(true)}
-          className="flex-1 h-14 bg-blue-600 text-white rounded-2xl shadow-lg flex items-center justify-center gap-2 font-bold active:scale-95 transition-transform pointer-events-auto"
+          className="flex-1 h-14 bg-blue-600 text-white rounded-2xl shadow-xl shadow-blue-500/20 flex items-center justify-center gap-2 font-black active:scale-95 pointer-events-auto transition-transform"
         >
           <Plus size={24} />
-          Novo Item
+          PEDIR
         </button>
         {items.length > 0 && (
           <button 
             onClick={() => setIsFinishing(true)}
-            className="flex-1 h-14 bg-green-600 text-white rounded-2xl shadow-lg flex items-center justify-center gap-2 font-bold active:scale-95 transition-transform pointer-events-auto"
+            className="flex-1 h-14 bg-green-600 text-white rounded-2xl shadow-xl shadow-green-500/20 flex items-center justify-center gap-2 font-black active:scale-95 pointer-events-auto transition-transform"
           >
             <CheckCircle2 size={24} />
-            Finalizar
+            CONTA
           </button>
         )}
       </div>
 
-      {/* Add Item Modal */}
+      {/* Modals: Agora com padding-bottom maior para evitar conflito com teclado Android */}
       {isAdding && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-8 space-y-6 shadow-2xl animate-in slide-in-from-bottom-full duration-300">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-end animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-dark-card w-full rounded-t-[2.5rem] p-8 pb-12 space-y-6 animate-in slide-in-from-bottom-full duration-300 overflow-y-auto max-h-[90vh]">
             <div className="flex justify-between items-center">
-              <h3 className="text-xl font-bold text-gray-800">Adicionar Consumo</h3>
-              <button onClick={() => { setIsAdding(false); resetForm(); }} className="p-2 text-gray-400"><X /></button>
+              <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">
+                {editingItem ? 'Editar Pedido' : 'Novo Pedido'}
+              </h3>
+              <button onClick={closeModal} className="p-4 -mr-4 text-gray-400"><X /></button>
             </div>
 
-            <form onSubmit={handleAddItem} className="space-y-6">
-              <div className="space-y-4">
-                <div className="flex gap-4">
-                  <label className="relative flex-1 block">
-                    <span className="text-xs font-bold text-gray-400 uppercase ml-1">O que você pediu?</span>
-                    <input 
-                      type="text" 
-                      value={newItemName}
-                      onChange={e => setNewItemName(e.target.value)}
-                      placeholder="Ex: Cerveja, Drink..." 
-                      className="w-full mt-1 px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                      required
-                    />
-                  </label>
-                  <label className="relative w-32 block">
-                    <span className="text-xs font-bold text-gray-400 uppercase ml-1">Preço (R$)</span>
-                    <input 
-                      type="number" 
-                      step="0.01"
-                      value={newItemPrice}
-                      onChange={e => setNewItemPrice(e.target.value)}
-                      placeholder="0,00" 
-                      className="w-full mt-1 px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                      required
-                    />
-                  </label>
+            <form onSubmit={handleSaveItem} className="space-y-6">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="col-span-2 space-y-1">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase ml-1">Produto</span>
+                  <input 
+                    type="text" 
+                    value={newItemName}
+                    onChange={e => setNewItemName(e.target.value)}
+                    placeholder="Ex: Chopp" 
+                    className="w-full px-5 py-4 bg-gray-100 dark:bg-dark-bg border-none rounded-2xl font-bold dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                    required
+                  />
                 </div>
+                <div className="col-span-1 space-y-1">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase ml-1">Preço</span>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    value={newItemPrice}
+                    onChange={e => setNewItemPrice(e.target.value)}
+                    placeholder="0,00" 
+                    className="w-full px-4 py-4 bg-gray-100 dark:bg-dark-bg border-none rounded-2xl font-bold dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                    required
+                  />
+                </div>
+              </div>
 
-                <div className="flex items-center gap-4">
-                  <div className="relative w-20 h-20 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden shrink-0 group">
-                    {newItemPhoto ? (
-                      <>
-                        <img src={newItemPhoto} className="w-full h-full object-cover" />
-                        <button 
-                          type="button"
-                          onClick={() => setNewItemPhoto(undefined)}
-                          className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <Trash2 className="text-white" size={20} />
-                        </button>
-                      </>
-                    ) : (
-                      <Camera className="text-gray-300" />
-                    )}
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      capture="environment"
-                      onChange={handleFileChange}
-                      className="absolute inset-0 opacity-0 cursor-pointer"
-                    />
-                  </div>
-                  <p className="text-sm text-gray-500">Toque no ícone para adicionar uma foto do produto (opcional).</p>
+              <div className="flex items-center gap-5 p-4 bg-gray-50 dark:bg-dark-bg rounded-2xl">
+                <div className="relative w-24 h-24 bg-white dark:bg-dark-card rounded-2xl border-2 border-dashed border-gray-200 dark:border-dark-border flex items-center justify-center overflow-hidden">
+                  {newItemPhoto ? (
+                    <img src={newItemPhoto} className="w-full h-full object-cover" />
+                  ) : (
+                    <Camera className="text-gray-300 dark:text-gray-600" />
+                  )}
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    capture="environment"
+                    onChange={handleFileChange}
+                    className="absolute inset-0 opacity-0"
+                  />
                 </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed font-medium">
+                  {newItemPhoto ? 'Foto adicionada!' : 'Toque no quadrado para fotografar seu pedido.'}
+                </p>
               </div>
 
               <button 
                 type="submit"
-                className="w-full h-14 bg-blue-600 text-white rounded-2xl shadow-lg flex items-center justify-center gap-2 font-bold active:scale-95 transition-transform"
+                className={`w-full h-16 text-white rounded-2xl shadow-lg font-black uppercase tracking-widest active:scale-95 transition-transform ${editingItem ? 'bg-amber-600' : 'bg-blue-600'}`}
               >
-                Salvar Item
+                {editingItem ? 'Confirmar Edição' : 'Salvar Pedido'}
               </button>
             </form>
           </div>
         </div>
       )}
 
-      {/* Finish Session Modal */}
+      {/* Outros Modais seguindo o mesmo padrão de mobile-first... */}
       {isFinishing && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-8 space-y-6 shadow-2xl animate-in slide-in-from-bottom-full duration-300">
-            <div className="flex justify-between items-center">
-              <h3 className="text-xl font-bold text-gray-800">Fechar Conta</h3>
-              <button onClick={() => setIsFinishing(false)} className="p-2 text-gray-400"><X /></button>
-            </div>
-
-            <div className="space-y-6">
-              <div className="p-6 bg-blue-50 rounded-2xl space-y-2">
-                <div className="flex justify-between text-gray-600">
-                  <span>Subtotal:</span>
-                  <span className="font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total)}</span>
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-end animate-in fade-in duration-200">
+           <div className="bg-white dark:bg-dark-card w-full rounded-t-[2.5rem] p-8 pb-12 space-y-6 animate-in slide-in-from-bottom-full duration-300">
+             <div className="flex justify-between items-center">
+                <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Fechar Conta</h3>
+                <button onClick={() => setIsFinishing(false)} className="p-4 -mr-4 text-gray-400"><X /></button>
+             </div>
+             
+             <div className="p-6 bg-blue-600 text-white rounded-3xl space-y-2">
+                <div className="flex justify-between items-center opacity-80 text-sm">
+                  <span>Consumo:</span>
+                  <span>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total)}</span>
                 </div>
-                
-                <div className="flex justify-between items-center py-2 border-t border-blue-100">
+                <div className="flex justify-between items-center py-2 border-t border-white/10">
                   <div className="flex items-center gap-2">
-                    <span className="text-gray-600">Gorjeta (10%):</span>
+                    <span className="font-bold">Serviço (10%):</span>
                     <input 
                       type="checkbox" 
                       checked={includeTip}
                       onChange={e => setIncludeTip(e.target.checked)}
-                      className="w-5 h-5 rounded-md text-blue-600 focus:ring-blue-500 border-gray-300"
+                      className="w-6 h-6 rounded-lg bg-white/20 border-none"
                     />
                   </div>
-                  <span className={`font-bold transition-opacity ${includeTip ? 'opacity-100' : 'opacity-30'}`}>
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total * 0.1)}
-                  </span>
+                  <span className="font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total * 0.1)}</span>
                 </div>
-
-                <div className="flex justify-between text-lg text-gray-900 pt-2 border-t border-blue-200">
-                  <span className="font-extrabold">Total Final:</span>
-                  <span className="font-extrabold text-blue-700">
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(includeTip ? total * 1.1 : total)}
-                  </span>
+                <div className="flex justify-between items-center text-2xl font-black pt-2 border-t border-white/20">
+                  <span>TOTAL:</span>
+                  <span>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(includeTip ? total * 1.1 : total)}</span>
                 </div>
-              </div>
+             </div>
 
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-bold text-gray-400 uppercase tracking-wide">Dividir entre quantas pessoas?</span>
-                  <div className="flex items-center gap-4 bg-gray-50 rounded-xl p-1 border border-gray-100">
+             <div className="space-y-3">
+                <div className="flex justify-between items-center px-2">
+                  <span className="text-xs font-black text-gray-400 uppercase">Dividir por:</span>
+                  <div className="flex items-center gap-6">
                     <button 
                       onClick={() => setSplitCount(Math.max(1, splitCount - 1))}
-                      className="w-10 h-10 rounded-lg bg-white shadow-sm flex items-center justify-center font-bold text-gray-600 active:bg-gray-100"
-                    >
-                      -
-                    </button>
-                    <span className="text-lg font-extrabold w-8 text-center">{splitCount}</span>
+                      className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-dark-bg flex items-center justify-center font-black active:scale-90"
+                    >-</button>
+                    <span className="text-2xl font-black dark:text-white">{splitCount}</span>
                     <button 
                       onClick={() => setSplitCount(splitCount + 1)}
-                      className="w-10 h-10 rounded-lg bg-white shadow-sm flex items-center justify-center font-bold text-gray-600 active:bg-gray-100"
-                    >
-                      +
-                    </button>
+                      className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-dark-bg flex items-center justify-center font-black active:scale-90"
+                    >+</button>
                   </div>
                 </div>
-
                 {splitCount > 1 && (
-                  <div className="p-4 bg-green-50 rounded-2xl flex justify-between items-center border border-green-100 animate-in fade-in zoom-in-95">
-                    <span className="text-green-700 font-medium">Cada um paga:</span>
-                    <span className="text-xl font-extrabold text-green-700">
+                  <div className="p-5 bg-green-50 dark:bg-green-900/20 rounded-2xl flex justify-between items-center border border-green-200 dark:border-green-800 animate-in zoom-in-95">
+                    <span className="text-green-700 dark:text-green-400 font-bold uppercase text-xs">Cada um:</span>
+                    <span className="text-2xl font-black text-green-700 dark:text-green-400">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((includeTip ? total * 1.1 : total) / splitCount)}
                     </span>
                   </div>
                 )}
-              </div>
+             </div>
 
-              <button 
+             <button 
                 onClick={finishSession}
-                className="w-full h-14 bg-green-600 text-white rounded-2xl shadow-lg flex items-center justify-center gap-2 font-bold active:scale-95 transition-transform"
-              >
-                Confirmar Finalização
-              </button>
-            </div>
-          </div>
+                className="w-full h-16 bg-green-600 text-white rounded-2xl shadow-xl shadow-green-500/20 font-black uppercase tracking-widest active:scale-95 transition-transform"
+             >
+                Confirmar Pagamento
+             </button>
+           </div>
         </div>
       )}
 
-      {/* Budget Limit Modal */}
       {isConfiguringBudget && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-8 space-y-6 shadow-2xl animate-in slide-in-from-bottom-full duration-300">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-end animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-dark-card w-full rounded-t-[2.5rem] p-8 pb-12 space-y-6 animate-in slide-in-from-bottom-full duration-300">
             <div className="flex justify-between items-center">
-              <h3 className="text-xl font-bold text-gray-800">Definir Orçamento</h3>
-              <button onClick={() => setIsConfiguringBudget(false)} className="p-2 text-gray-400"><X /></button>
+              <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Limite da Noite</h3>
+              <button onClick={() => setIsConfiguringBudget(false)} className="p-4 -mr-4 text-gray-400"><X /></button>
             </div>
-            
             <div className="space-y-4">
-              <p className="text-sm text-gray-500">Qual o valor máximo que você planeja gastar hoje? A barra de progresso te avisará ao chegar perto.</p>
               <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400">R$</span>
+                <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-gray-300">R$</span>
                 <input 
                   type="number" 
                   value={budgetLimit}
                   onChange={e => setBudgetLimit(Number(e.target.value))}
-                  className="w-full px-12 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-xl font-extrabold"
+                  className="w-full pl-16 pr-6 py-5 bg-gray-100 dark:bg-dark-bg border-none rounded-2xl text-2xl font-black dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <button 
                 onClick={() => setIsConfiguringBudget(false)}
-                className="w-full h-14 bg-blue-600 text-white rounded-2xl shadow-lg font-bold"
+                className="w-full h-16 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest active:scale-95"
               >
                 Definir Limite
               </button>
@@ -383,7 +417,7 @@ const BeerIcon = ({ className, size = 24 }: { className?: string, size?: number 
     viewBox="0 0 24 24" 
     fill="none" 
     stroke="currentColor" 
-    strokeWidth="2" 
+    strokeWidth="2.5" 
     strokeLinecap="round" 
     strokeLinejoin="round" 
     className={className}
