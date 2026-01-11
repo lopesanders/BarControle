@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Camera, CheckCircle2, Settings, X, Pencil, Copy, Maximize2, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Plus, Trash2, Camera, CheckCircle2, Settings, X, Pencil, Copy, Maximize2, Loader2, Play } from 'lucide-react';
 import { ConsumptionItem, ConsumptionSession } from '../types';
 import ProgressBar from './ProgressBar';
 
@@ -32,6 +32,8 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
 
   const [splitCount, setSplitCount] = useState(1);
   const [includeTip, setIncludeTip] = useState(false);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const total = items.reduce((acc, item) => acc + item.price, 0);
 
@@ -81,10 +83,43 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
     setIsProcessingPhoto(false);
   };
 
+  // Função de simulação para Android 16 (Gera uma imagem de teste)
+  const simulateCameraCapture = () => {
+    setIsProcessingPhoto(true);
+    setTimeout(() => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 400;
+      canvas.height = 400;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        // Simula um fundo colorido de balada
+        const grad = ctx.createLinearGradient(0, 0, 400, 400);
+        grad.addColorStop(0, '#1e3a8a');
+        grad.addColorStop(1, '#6366f1');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 400, 400);
+        
+        // Simula um ícone de bebida
+        ctx.fillStyle = "white";
+        ctx.font = "100px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("🍺", 200, 220);
+        ctx.font = "20px Inter";
+        ctx.fillText("SIMULAÇÃO ANDROID 16", 200, 350);
+        
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        setNewItemPhoto(dataUrl);
+        console.log("Simulação Android 16: Foto gerada com sucesso.");
+      }
+      setIsProcessingPhoto(false);
+    }, 800);
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    console.log(`Diagnostic: Arquivo recebido. Tamanho: ${(file.size / 1024).toFixed(2)}KB, Tipo: ${file.type}`);
     setIsProcessingPhoto(true);
 
     const objectUrl = URL.createObjectURL(file);
@@ -93,6 +128,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
     img.crossOrigin = "anonymous";
 
     img.onload = () => {
+      console.log(`Diagnostic: Imagem carregada. Dimensões originais: ${img.width}x${img.height}`);
       try {
         const canvas = document.createElement('canvas');
         const MAX_DIM = 400; 
@@ -116,8 +152,6 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
         const ctx = canvas.getContext('2d');
         
         if (ctx) {
-          // IMPORTANTE: Preencher com fundo branco. 
-          // JPEGs gerados a partir de canvas transparente em alguns Androids ficam pretos.
           ctx.fillStyle = "#ffffff";
           ctx.fillRect(0, 0, width, height);
           
@@ -126,23 +160,25 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
           
           if (dataUrl && dataUrl.startsWith('data:image')) {
             setNewItemPhoto(dataUrl);
+            console.log(`Diagnostic: Foto processada e otimizada. Tamanho Base64: ${(dataUrl.length / 1024).toFixed(2)}KB`);
           } else {
-            console.error("Erro ao gerar dataUrl do canvas");
-            alert("Erro ao processar a imagem tirada.");
+            console.error("Diagnostic: Falha ao gerar DataURL.");
+            alert("Erro ao processar a imagem. Tente novamente.");
           }
         }
       } catch (err) {
-        console.error("Erro no processamento de canvas:", err);
-        alert("O celular não conseguiu processar a imagem.");
+        console.error("Diagnostic: Erro no canvas.", err);
+        alert("O sistema não conseguiu processar a foto.");
       } finally {
         setIsProcessingPhoto(false);
         URL.revokeObjectURL(objectUrl);
-        e.target.value = ""; 
+        if (fileInputRef.current) fileInputRef.current.value = ""; 
       }
     };
 
-    img.onerror = () => {
-      alert("Falha ao abrir a foto capturada.");
+    img.onerror = (e) => {
+      console.error("Diagnostic: Falha ao carregar Blob de imagem.", e);
+      alert("Não foi possível ler a foto da câmera.");
       setIsProcessingPhoto(false);
       URL.revokeObjectURL(objectUrl);
     };
@@ -382,6 +418,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
                   )}
                   <input 
                     type="file" 
+                    ref={fileInputRef}
                     accept="image/*" 
                     capture="environment"
                     onChange={handleFileChange}
@@ -389,19 +426,30 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
                     disabled={isProcessingPhoto}
                   />
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 space-y-2">
                   <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed font-medium">
-                    {isProcessingPhoto ? 'Processando...' : newItemPhoto ? 'Foto pronta!' : 'Toque no quadrado para tirar foto.'}
+                    {isProcessingPhoto ? 'Processando...' : newItemPhoto ? 'Foto capturada!' : 'Toque no quadrado para capturar foto.'}
                   </p>
-                  {newItemPhoto && !isProcessingPhoto && (
-                    <button 
-                      type="button" 
-                      onClick={() => setNewItemPhoto(undefined)}
-                      className="text-[10px] font-bold text-red-500 uppercase mt-2 active:opacity-50"
-                    >
-                      Remover Foto
-                    </button>
-                  )}
+                  
+                  <div className="flex gap-3">
+                    {newItemPhoto && !isProcessingPhoto ? (
+                      <button 
+                        type="button" 
+                        onClick={() => setNewItemPhoto(undefined)}
+                        className="text-[10px] font-bold text-red-500 uppercase active:opacity-50"
+                      >
+                        Remover Foto
+                      </button>
+                    ) : (
+                      <button 
+                        type="button" 
+                        onClick={simulateCameraCapture}
+                        className="flex items-center gap-1 text-[10px] font-bold text-blue-500 dark:text-blue-400 uppercase active:opacity-50"
+                      >
+                        <Play size={10} /> Simular Foto (And. 16)
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -417,7 +465,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
         </div>
       )}
 
-      {/* Finish/Split Modal */}
+      {/* Rest of the modals (Finish/Split, Budget Limit) remain unchanged */}
       {isFinishing && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-end animate-in fade-in duration-200">
            <div className="bg-white dark:bg-dark-card w-full rounded-t-[2.5rem] p-8 pb-12 space-y-6 animate-in slide-in-from-bottom-full duration-300">
