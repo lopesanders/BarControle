@@ -119,34 +119,45 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      // Uso de URL.createObjectURL é mais performático que FileReader direto
-      const objectUrl = URL.createObjectURL(file);
-      const img = new Image();
-      img.src = objectUrl;
+    if (!file) return;
+
+    // FileReader é mais compatível com WebViews/APK do que URL.createObjectURL
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
       
+      const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 600; // Aumentado um pouco para melhor qualidade
-        const scaleSize = MAX_WIDTH / img.width;
-        
-        canvas.width = MAX_WIDTH;
-        canvas.height = img.height * scaleSize;
-        
+        const MAX_DIM = 800;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_DIM) {
+            height *= MAX_DIM / width;
+            width = MAX_DIM;
+          }
+        } else {
+          if (height > MAX_DIM) {
+            width *= MAX_DIM / height;
+            height = MAX_DIM;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
         const ctx = canvas.getContext('2d');
         if (ctx) {
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          ctx.drawImage(img, 0, 0, width, height);
+          // Qualidade 0.6 é o equilíbrio ideal para APK e armazenamento local
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
           setNewItemPhoto(dataUrl);
         }
-        URL.revokeObjectURL(objectUrl);
       };
-
-      img.onerror = () => {
-        console.error("Erro ao processar imagem");
-        URL.revokeObjectURL(objectUrl);
-      };
-    }
+      img.src = base64;
+    };
+    reader.readAsDataURL(file);
   };
 
   const openFullscreen = (e: React.MouseEvent, photo: string) => {
@@ -247,20 +258,22 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
       {/* Fullscreen Photo Viewer */}
       {fullscreenPhoto && (
         <div 
-          className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-md flex items-center justify-center animate-in fade-in duration-300"
+          className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in duration-300"
           onClick={() => setFullscreenPhoto(null)}
         >
           <button 
-            className="absolute top-8 right-8 p-4 text-white/50 hover:text-white"
+            className="absolute top-10 right-6 p-4 text-white hover:bg-white/10 rounded-full transition-colors"
             onClick={() => setFullscreenPhoto(null)}
           >
             <X size={32} />
           </button>
-          <img 
-            src={fullscreenPhoto} 
-            className="max-w-full max-h-full object-contain animate-in zoom-in-95 duration-300"
-            alt="Foto em tela cheia"
-          />
+          <div className="w-full h-full flex items-center justify-center">
+             <img 
+                src={fullscreenPhoto} 
+                className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl animate-in zoom-in-95 duration-300"
+                alt="Foto em tela cheia"
+              />
+          </div>
         </div>
       )}
 
