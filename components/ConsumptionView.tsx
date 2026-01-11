@@ -90,25 +90,24 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
     const reader = new FileReader();
     
     reader.onerror = () => {
-      alert("Erro ao ler arquivo da câmera");
+      alert("Erro ao ler arquivo. Verifique permissões da câmera.");
       setIsProcessingPhoto(false);
     };
 
     reader.onload = (event) => {
       try {
-        const base64 = event.target?.result as string;
+        const base64Data = event.target?.result as string;
         const img = new Image();
         
-        img.onerror = () => {
-          alert("Erro ao carregar imagem no processador");
-          setIsProcessingPhoto(false);
-        };
+        // Atributo importante para WebViews
+        img.crossOrigin = "anonymous";
 
         img.onload = () => {
           try {
             const canvas = document.createElement('canvas');
-            // Dimensão reduzida para 480px garante estabilidade no Android/APK
-            const MAX_DIM = 480; 
+            // 320px é o limite de segurança para WebViews Android instáveis
+            // e garante que a foto caiba no localStorage sem erros.
+            const MAX_DIM = 320; 
             let width = img.width;
             let height = img.height;
 
@@ -129,25 +128,33 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
             const ctx = canvas.getContext('2d');
             
             if (ctx) {
-              ctx.imageSmoothingEnabled = true;
-              ctx.imageSmoothingQuality = 'high';
               ctx.drawImage(img, 0, 0, width, height);
+              // Qualidade 0.4 para garantir que o arquivo seja minúsculo e compatível
+              const dataUrl = canvas.toDataURL('image/jpeg', 0.4);
               
-              // Qualidade 0.5 gera arquivos leves (~30-50kb) perfeitos para APK
-              const dataUrl = canvas.toDataURL('image/jpeg', 0.5);
-              setNewItemPhoto(dataUrl);
+              if (dataUrl && dataUrl.length > 100) {
+                setNewItemPhoto(dataUrl);
+              } else {
+                alert("Falha ao gerar miniatura da imagem.");
+              }
             }
-            setIsProcessingPhoto(false);
-            // Resetar o input para permitir capturar a mesma foto se necessário
-            e.target.value = ""; 
           } catch (err) {
-            alert("Erro no redimensionamento da imagem");
+            console.error(err);
+            alert("Erro ao processar imagem no canvas.");
+          } finally {
             setIsProcessingPhoto(false);
+            e.target.value = ""; 
           }
         };
-        img.src = base64;
+
+        img.onerror = () => {
+          alert("A imagem capturada é inválida ou muito grande.");
+          setIsProcessingPhoto(false);
+        };
+
+        img.src = base64Data;
       } catch (err) {
-        alert("Erro no processamento base64");
+        alert("Erro no processamento base64.");
         setIsProcessingPhoto(false);
       }
     };
@@ -241,7 +248,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
                 onClick={() => setEditingItem(item)}
               >
                 <div 
-                  className="w-14 h-14 rounded-xl overflow-hidden bg-gray-100 dark:bg-dark-bg shrink-0 relative group shadow-inner"
+                  className="w-14 h-14 rounded-xl overflow-hidden bg-gray-100 dark:bg-dark-bg shrink-0 relative group shadow-inner border border-gray-100 dark:border-dark-border"
                   onClick={(e) => item.photo && openFullscreen(e, item.photo)}
                 >
                   {item.photo ? (
@@ -391,7 +398,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
                 </div>
                 <div className="flex-1">
                   <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed font-medium">
-                    {isProcessingPhoto ? 'Aguarde um instante...' : newItemPhoto ? 'Foto adicionada!' : 'Toque no quadrado para fotografar seu pedido.'}
+                    {isProcessingPhoto ? 'Redimensionando...' : newItemPhoto ? 'Foto pronta!' : 'Toque no quadrado para tirar foto.'}
                   </p>
                   {newItemPhoto && !isProcessingPhoto && (
                     <button 
@@ -410,7 +417,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
                 disabled={isProcessingPhoto}
                 className={`w-full h-16 text-white rounded-2xl shadow-lg font-black uppercase tracking-widest active:scale-95 transition-transform disabled:opacity-50 disabled:scale-100 ${editingItem ? 'bg-amber-600' : 'bg-blue-600'}`}
               >
-                {isProcessingPhoto ? 'Aguarde...' : editingItem ? 'Confirmar Edição' : 'Salvar Pedido'}
+                {isProcessingPhoto ? 'Processando...' : editingItem ? 'Confirmar Edição' : 'Salvar Pedido'}
               </button>
             </form>
           </div>
