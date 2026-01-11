@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Camera, CheckCircle2, Settings, X, Pencil, Copy } from 'lucide-react';
+import { Plus, Trash2, Camera, CheckCircle2, Settings, X, Pencil, Copy, Maximize2 } from 'lucide-react';
 import { ConsumptionItem, ConsumptionSession } from '../types';
 import ProgressBar from './ProgressBar';
 
@@ -23,6 +23,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
   const [editingItem, setEditingItem] = useState<ConsumptionItem | null>(null);
   const [isFinishing, setIsFinishing] = useState(false);
   const [isConfiguringBudget, setIsConfiguringBudget] = useState(false);
+  const [fullscreenPhoto, setFullscreenPhoto] = useState<string | null>(null);
 
   const [newItemName, setNewItemName] = useState('');
   const [newItemPrice, setNewItemPrice] = useState('');
@@ -95,7 +96,6 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
     setItems(prev => [newItem, ...prev]);
   };
 
-  // Fix: Implemented finishSession to finalize the account and call onFinish
   const finishSession = () => {
     const tipAmount = includeTip ? total * 0.1 : 0;
     const finalTotal = total + tipAmount;
@@ -120,24 +120,38 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Redimensionamento básico no client-side para Android não estourar storage
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const img = new Image();
-        img.src = reader.result as string;
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 400;
-          const scaleSize = MAX_WIDTH / img.width;
-          canvas.width = MAX_WIDTH;
-          canvas.height = img.height * scaleSize;
-          const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-          setNewItemPhoto(canvas.toDataURL('image/jpeg', 0.7)); // Salva em JPEG comprimido
-        };
+      // Uso de URL.createObjectURL é mais performático que FileReader direto
+      const objectUrl = URL.createObjectURL(file);
+      const img = new Image();
+      img.src = objectUrl;
+      
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 600; // Aumentado um pouco para melhor qualidade
+        const scaleSize = MAX_WIDTH / img.width;
+        
+        canvas.width = MAX_WIDTH;
+        canvas.height = img.height * scaleSize;
+        
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          setNewItemPhoto(dataUrl);
+        }
+        URL.revokeObjectURL(objectUrl);
       };
-      reader.readAsDataURL(file);
+
+      img.onerror = () => {
+        console.error("Erro ao processar imagem");
+        URL.revokeObjectURL(objectUrl);
+      };
     }
+  };
+
+  const openFullscreen = (e: React.MouseEvent, photo: string) => {
+    e.stopPropagation();
+    setFullscreenPhoto(photo);
   };
 
   return (
@@ -179,12 +193,20 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
             {items.map(item => (
               <div 
                 key={item.id} 
+                className="bg-white dark:bg-dark-card p-4 rounded-2xl border border-gray-100 dark:border-dark-border flex items-center gap-4 active:bg-gray-50 dark:active:bg-dark-bg transition-colors relative"
                 onClick={() => setEditingItem(item)}
-                className="bg-white dark:bg-dark-card p-4 rounded-2xl border border-gray-100 dark:border-dark-border flex items-center gap-4 active:bg-gray-50 dark:active:bg-dark-bg transition-colors"
               >
-                <div className="w-14 h-14 rounded-xl overflow-hidden bg-gray-100 dark:bg-dark-bg shrink-0">
+                <div 
+                  className="w-14 h-14 rounded-xl overflow-hidden bg-gray-100 dark:bg-dark-bg shrink-0 relative group"
+                  onClick={(e) => item.photo && openFullscreen(e, item.photo)}
+                >
                   {item.photo ? (
-                    <img src={item.photo} className="w-full h-full object-cover" />
+                    <>
+                      <img src={item.photo} className="w-full h-full object-cover" alt={item.name} />
+                      <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-active:opacity-100 transition-opacity">
+                        <Maximize2 size={16} className="text-white" />
+                      </div>
+                    </>
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-gray-300 dark:text-gray-700">
                       <BeerIcon size={24} />
@@ -222,7 +244,27 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
         )}
       </div>
 
-      {/* Floating Action Buttons - Optimized for Android Navigation Bar */}
+      {/* Fullscreen Photo Viewer */}
+      {fullscreenPhoto && (
+        <div 
+          className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-md flex items-center justify-center animate-in fade-in duration-300"
+          onClick={() => setFullscreenPhoto(null)}
+        >
+          <button 
+            className="absolute top-8 right-8 p-4 text-white/50 hover:text-white"
+            onClick={() => setFullscreenPhoto(null)}
+          >
+            <X size={32} />
+          </button>
+          <img 
+            src={fullscreenPhoto} 
+            className="max-w-full max-h-full object-contain animate-in zoom-in-95 duration-300"
+            alt="Foto em tela cheia"
+          />
+        </div>
+      )}
+
+      {/* Floating Action Buttons */}
       <div className="fixed bottom-24 left-0 right-0 max-w-md mx-auto px-6 flex gap-3 z-30 pointer-events-none">
         <button 
           onClick={() => setIsAdding(true)}
@@ -242,7 +284,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
         )}
       </div>
 
-      {/* Modals: Agora com padding-bottom maior para evitar conflito com teclado Android */}
+      {/* Add/Edit Modal */}
       {isAdding && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-end animate-in fade-in duration-200">
           <div className="bg-white dark:bg-dark-card w-full rounded-t-[2.5rem] p-8 pb-12 space-y-6 animate-in slide-in-from-bottom-full duration-300 overflow-y-auto max-h-[90vh]">
@@ -283,7 +325,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
               <div className="flex items-center gap-5 p-4 bg-gray-50 dark:bg-dark-bg rounded-2xl">
                 <div className="relative w-24 h-24 bg-white dark:bg-dark-card rounded-2xl border-2 border-dashed border-gray-200 dark:border-dark-border flex items-center justify-center overflow-hidden">
                   {newItemPhoto ? (
-                    <img src={newItemPhoto} className="w-full h-full object-cover" />
+                    <img src={newItemPhoto} className="w-full h-full object-cover" alt="Preview" />
                   ) : (
                     <Camera className="text-gray-300 dark:text-gray-600" />
                   )}
@@ -292,12 +334,23 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
                     accept="image/*" 
                     capture="environment"
                     onChange={handleFileChange}
-                    className="absolute inset-0 opacity-0"
+                    className="absolute inset-0 opacity-0 cursor-pointer"
                   />
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed font-medium">
-                  {newItemPhoto ? 'Foto adicionada!' : 'Toque no quadrado para fotografar seu pedido.'}
-                </p>
+                <div className="flex-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed font-medium">
+                    {newItemPhoto ? 'Foto adicionada!' : 'Toque no quadrado para fotografar seu pedido.'}
+                  </p>
+                  {newItemPhoto && (
+                    <button 
+                      type="button" 
+                      onClick={() => setNewItemPhoto(undefined)}
+                      className="text-[10px] font-bold text-red-500 uppercase mt-2"
+                    >
+                      Remover Foto
+                    </button>
+                  )}
+                </div>
               </div>
 
               <button 
@@ -311,7 +364,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
         </div>
       )}
 
-      {/* Outros Modais seguindo o mesmo padrão de mobile-first... */}
+      {/* Finish/Split Modal */}
       {isFinishing && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-end animate-in fade-in duration-200">
            <div className="bg-white dark:bg-dark-card w-full rounded-t-[2.5rem] p-8 pb-12 space-y-6 animate-in slide-in-from-bottom-full duration-300">
@@ -378,6 +431,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
         </div>
       )}
 
+      {/* Budget Limit Modal */}
       {isConfiguringBudget && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-end animate-in fade-in duration-200">
           <div className="bg-white dark:bg-dark-card w-full rounded-t-[2.5rem] p-8 pb-12 space-y-6 animate-in slide-in-from-bottom-full duration-300">
