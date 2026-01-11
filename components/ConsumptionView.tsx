@@ -25,6 +25,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
   const [isConfiguringBudget, setIsConfiguringBudget] = useState(false);
   const [fullscreenPhoto, setFullscreenPhoto] = useState<string | null>(null);
   const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
+  const [debugLog, setDebugLog] = useState<string>('');
 
   const [newItemName, setNewItemName] = useState('');
   const [newItemPrice, setNewItemPrice] = useState('');
@@ -81,9 +82,9 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
     setNewItemPrice('');
     setNewItemPhoto(undefined);
     setIsProcessingPhoto(false);
+    setDebugLog('');
   };
 
-  // Função de simulação para Android 16 (Gera uma imagem de teste)
   const simulateCameraCapture = () => {
     setIsProcessingPhoto(true);
     setTimeout(() => {
@@ -92,24 +93,19 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
       canvas.height = 400;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        // Simula um fundo colorido de balada
         const grad = ctx.createLinearGradient(0, 0, 400, 400);
         grad.addColorStop(0, '#1e3a8a');
         grad.addColorStop(1, '#6366f1');
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, 400, 400);
-        
-        // Simula um ícone de bebida
         ctx.fillStyle = "white";
         ctx.font = "100px Arial";
         ctx.textAlign = "center";
         ctx.fillText("🍺", 200, 220);
         ctx.font = "20px Inter";
         ctx.fillText("SIMULAÇÃO ANDROID 16", 200, 350);
-        
         const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
         setNewItemPhoto(dataUrl);
-        console.log("Simulação Android 16: Foto gerada com sucesso.");
       }
       setIsProcessingPhoto(false);
     }, 800);
@@ -119,71 +115,75 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    console.log(`Diagnostic: Arquivo recebido. Tamanho: ${(file.size / 1024).toFixed(2)}KB, Tipo: ${file.type}`);
+    setDebugLog('Lendo arquivo...');
     setIsProcessingPhoto(true);
 
-    const objectUrl = URL.createObjectURL(file);
-    const img = new Image();
-    
-    img.crossOrigin = "anonymous";
-
-    img.onload = () => {
-      console.log(`Diagnostic: Imagem carregada. Dimensões originais: ${img.width}x${img.height}`);
-      try {
-        const canvas = document.createElement('canvas');
-        const MAX_DIM = 400; 
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > MAX_DIM) {
-            height *= MAX_DIM / width;
-            width = MAX_DIM;
-          }
-        } else {
-          if (height > MAX_DIM) {
-            width *= MAX_DIM / height;
-            height = MAX_DIM;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        
-        if (ctx) {
-          ctx.fillStyle = "#ffffff";
-          ctx.fillRect(0, 0, width, height);
-          
-          ctx.drawImage(img, 0, 0, width, height);
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.6); 
-          
-          if (dataUrl && dataUrl.startsWith('data:image')) {
-            setNewItemPhoto(dataUrl);
-            console.log(`Diagnostic: Foto processada e otimizada. Tamanho Base64: ${(dataUrl.length / 1024).toFixed(2)}KB`);
-          } else {
-            console.error("Diagnostic: Falha ao gerar DataURL.");
-            alert("Erro ao processar a imagem. Tente novamente.");
-          }
-        }
-      } catch (err) {
-        console.error("Diagnostic: Erro no canvas.", err);
-        alert("O sistema não conseguiu processar a foto.");
-      } finally {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result as string;
+      if (!result) {
+        setDebugLog('Erro: Falha ao ler arquivo.');
         setIsProcessingPhoto(false);
-        URL.revokeObjectURL(objectUrl);
-        if (fileInputRef.current) fileInputRef.current.value = ""; 
+        return;
       }
-    };
 
-    img.onerror = (e) => {
-      console.error("Diagnostic: Falha ao carregar Blob de imagem.", e);
-      alert("Não foi possível ler a foto da câmera.");
+      const img = new Image();
+      // IMPORTANTE: NÃO usar crossOrigin para blobs locais/arquivos de câmera
+      img.onload = () => {
+        setDebugLog('Processando imagem...');
+        try {
+          const canvas = document.createElement('canvas');
+          const MAX_DIM = 400; 
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_DIM) {
+              height *= MAX_DIM / width;
+              width = MAX_DIM;
+            }
+          } else {
+            if (height > MAX_DIM) {
+              width *= MAX_DIM / height;
+              height = MAX_DIM;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          
+          if (ctx) {
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, width, height);
+            ctx.drawImage(img, 0, 0, width, height);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.6); 
+            
+            if (dataUrl && dataUrl.length > 100) {
+              setNewItemPhoto(dataUrl);
+              setDebugLog('Foto pronta!');
+            } else {
+              setDebugLog('Erro: Canvas vazio.');
+            }
+          }
+        } catch (err) {
+          setDebugLog('Erro: Falha no canvas.');
+        } finally {
+          setIsProcessingPhoto(false);
+          if (fileInputRef.current) fileInputRef.current.value = ""; 
+        }
+      };
+      img.onerror = () => {
+        setDebugLog('Erro: Falha ao carregar imagem.');
+        setIsProcessingPhoto(false);
+      };
+      img.src = result;
+    };
+    reader.onerror = () => {
+      setDebugLog('Erro: Falha no FileReader.');
       setIsProcessingPhoto(false);
-      URL.revokeObjectURL(objectUrl);
     };
-
-    img.src = objectUrl;
+    reader.readAsDataURL(file);
   };
 
   const removeItem = (e: React.MouseEvent, id: string) => {
@@ -206,7 +206,6 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
   const finishSession = () => {
     const tipAmount = includeTip ? total * 0.1 : 0;
     const finalTotal = total + tipAmount;
-    
     const session: ConsumptionSession = {
       id: Date.now().toString(),
       items: [...items],
@@ -217,7 +216,6 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
       tipAmount: tipAmount,
       totalPerPerson: finalTotal / splitCount
     };
-    
     onFinish(session);
     setIsFinishing(false);
     setSplitCount(1);
@@ -428,7 +426,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
                 </div>
                 <div className="flex-1 space-y-2">
                   <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed font-medium">
-                    {isProcessingPhoto ? 'Processando...' : newItemPhoto ? 'Foto capturada!' : 'Toque no quadrado para capturar foto.'}
+                    {isProcessingPhoto ? (debugLog || 'Processando...') : newItemPhoto ? 'Foto capturada!' : 'Toque no quadrado para capturar foto.'}
                   </p>
                   
                   <div className="flex gap-3">
@@ -446,7 +444,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
                         onClick={simulateCameraCapture}
                         className="flex items-center gap-1 text-[10px] font-bold text-blue-500 dark:text-blue-400 uppercase active:opacity-50"
                       >
-                        <Play size={10} /> Simular Foto (And. 16)
+                        <Play size={10} /> Teste Rápido
                       </button>
                     )}
                   </div>
@@ -465,7 +463,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
         </div>
       )}
 
-      {/* Rest of the modals (Finish/Split, Budget Limit) remain unchanged */}
+      {/* Modals for Finish and Budget Limit stay same as previous versions */}
       {isFinishing && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-end animate-in fade-in duration-200">
            <div className="bg-white dark:bg-dark-card w-full rounded-t-[2.5rem] p-8 pb-12 space-y-6 animate-in slide-in-from-bottom-full duration-300">

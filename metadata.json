@@ -2,6 +2,12 @@
   "name": "Quanto Deu? - Consumo Inteligente",
   "description": "Um aplicativo intuitivo para controle de consumo em bares e baladas com divisão de conta e histórico persistente.",
   "requestFramePermissions": [
-    "camera"
+    "camera",
+    "microphone"
+  ],
+  "permissions": [
+    "android.permission.CAMERA",
+    "android.permission.READ_EXTERNAL_STORAGE",
+    "android.permission.WRITE_EXTERNAL_STORAGE"
   ]
 }
