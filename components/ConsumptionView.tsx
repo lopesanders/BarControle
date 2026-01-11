@@ -87,79 +87,63 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
 
     setIsProcessingPhoto(true);
 
-    const reader = new FileReader();
+    // Técnica de ObjectURL: muito mais leve para memória do que FileReader Base64
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
     
-    reader.onerror = () => {
-      alert("Erro ao ler arquivo. Verifique permissões da câmera.");
-      setIsProcessingPhoto(false);
-    };
+    img.crossOrigin = "anonymous";
 
-    reader.onload = (event) => {
+    img.onload = () => {
       try {
-        const base64Data = event.target?.result as string;
-        const img = new Image();
-        
-        // Atributo importante para WebViews
-        img.crossOrigin = "anonymous";
+        const canvas = document.createElement('canvas');
+        const MAX_DIM = 400; // Aumentado levemente de 320 para 400 para melhor visualização
+        let width = img.width;
+        let height = img.height;
 
-        img.onload = () => {
-          try {
-            const canvas = document.createElement('canvas');
-            // 320px é o limite de segurança para WebViews Android instáveis
-            // e garante que a foto caiba no localStorage sem erros.
-            const MAX_DIM = 320; 
-            let width = img.width;
-            let height = img.height;
-
-            if (width > height) {
-              if (width > MAX_DIM) {
-                height *= MAX_DIM / width;
-                width = MAX_DIM;
-              }
-            } else {
-              if (height > MAX_DIM) {
-                width *= MAX_DIM / height;
-                height = MAX_DIM;
-              }
-            }
-
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            
-            if (ctx) {
-              ctx.drawImage(img, 0, 0, width, height);
-              // Qualidade 0.4 para garantir que o arquivo seja minúsculo e compatível
-              const dataUrl = canvas.toDataURL('image/jpeg', 0.4);
-              
-              if (dataUrl && dataUrl.length > 100) {
-                setNewItemPhoto(dataUrl);
-              } else {
-                alert("Falha ao gerar miniatura da imagem.");
-              }
-            }
-          } catch (err) {
-            console.error(err);
-            alert("Erro ao processar imagem no canvas.");
-          } finally {
-            setIsProcessingPhoto(false);
-            e.target.value = ""; 
+        if (width > height) {
+          if (width > MAX_DIM) {
+            height *= MAX_DIM / width;
+            width = MAX_DIM;
           }
-        };
+        } else {
+          if (height > MAX_DIM) {
+            width *= MAX_DIM / height;
+            height = MAX_DIM;
+          }
+        }
 
-        img.onerror = () => {
-          alert("A imagem capturada é inválida ou muito grande.");
-          setIsProcessingPhoto(false);
-        };
-
-        img.src = base64Data;
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.5); // Qualidade 0.5 é o sweet spot
+          
+          if (dataUrl && dataUrl.startsWith('data:image')) {
+            setNewItemPhoto(dataUrl);
+          } else {
+            console.error("DataURL inválido gerado");
+            alert("Erro ao processar imagem final.");
+          }
+        }
       } catch (err) {
-        alert("Erro no processamento base64.");
+        console.error("Erro no processamento de canvas:", err);
+        alert("O celular não conseguiu processar a imagem.");
+      } finally {
         setIsProcessingPhoto(false);
+        URL.revokeObjectURL(objectUrl); // Libera memória IMEDIATAMENTE
+        e.target.value = ""; 
       }
     };
-    
-    reader.readAsDataURL(file);
+
+    img.onerror = () => {
+      alert("Falha ao abrir a foto capturada.");
+      setIsProcessingPhoto(false);
+      URL.revokeObjectURL(objectUrl);
+    };
+
+    img.src = objectUrl;
   };
 
   const removeItem = (e: React.MouseEvent, id: string) => {
@@ -214,11 +198,16 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
         'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
       }`}>
         <div className="flex justify-between items-start mb-4">
-          <div>
+          <div className="flex flex-col">
             <p className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-1">Gasto Atual</p>
-            <h2 className="text-3xl font-black tracking-tight text-gray-900 dark:text-white">
+            <h2 className="text-3xl font-black tracking-tight text-gray-900 dark:text-white leading-none">
               {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total)}
             </h2>
+            <div className="mt-2 pt-1.5 border-t border-gray-200 dark:border-white/10 w-fit pr-4">
+              <p className="text-[11px] font-black uppercase tracking-tight text-gray-500 dark:text-gray-400">
+                Limite: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(budgetLimit)}
+              </p>
+            </div>
           </div>
           <button 
             onClick={() => setIsConfiguringBudget(true)}
@@ -398,7 +387,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
                 </div>
                 <div className="flex-1">
                   <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed font-medium">
-                    {isProcessingPhoto ? 'Redimensionando...' : newItemPhoto ? 'Foto pronta!' : 'Toque no quadrado para tirar foto.'}
+                    {isProcessingPhoto ? 'Processando...' : newItemPhoto ? 'Foto pronta!' : 'Toque no quadrado para tirar foto.'}
                   </p>
                   {newItemPhoto && !isProcessingPhoto && (
                     <button 
