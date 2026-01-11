@@ -1,0 +1,7 @@
+{
+  "name": "BarControl - Consumo Inteligente",
+  "description": "Um aplicativo intuitivo para controle de consumo em bares e baladas com divisão de conta e histórico persistente.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
