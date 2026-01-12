@@ -43,21 +43,46 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
     }
   }, [editingItem]);
 
+  const optimizeBase64 = async (base64: string): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 500; // Redução agressiva para poupar localStorage
+        let width = img.width;
+        let height = img.height;
+
+        if (width > MAX_WIDTH) {
+          height = (height * MAX_WIDTH) / width;
+          width = MAX_WIDTH;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.5)); // Qualidade 50%
+      };
+      img.src = base64;
+    });
+  };
+
   const handleTakeNativePhoto = async () => {
     try {
       const image = await Camera.getPhoto({
-        quality: 70,
+        quality: 50,
         allowEditing: true,
         resultType: CameraResultType.Base64,
-        source: CameraSource.Camera, // Força a Câmera diretamente
+        source: CameraSource.Camera,
         saveToGallery: false
       });
 
       if (image.base64String) {
-        setNewItemPhoto(`data:image/jpeg;base64,${image.base64String}`);
+        const optimized = await optimizeBase64(`data:image/jpeg;base64,${image.base64String}`);
+        setNewItemPhoto(optimized);
       }
     } catch (error) {
-      console.log('Usuário cancelou ou houve erro na câmera:', error);
+      console.log('Câmera cancelada ou erro:', error);
     }
   };
 
@@ -83,6 +108,10 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
     setNewItemPhoto(undefined);
   };
 
+  const formatCurrency = (val: number) => {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+  };
+
   return (
     <div className="p-4 space-y-6">
       {/* Widget de Orçamento */}
@@ -95,8 +124,11 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
           <div className="flex flex-col">
             <p className="text-[10px] font-black uppercase tracking-widest opacity-60 text-gray-500 dark:text-gray-400">Gasto Consolidado</p>
             <h2 className="text-4xl font-black tracking-tighter text-gray-900 dark:text-white leading-none">
-              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total)}
+              {formatCurrency(total)}
             </h2>
+            <p className="text-xs font-bold text-gray-400 dark:text-gray-500 mt-1">
+              de {formatCurrency(budgetLimit)}
+            </p>
           </div>
           <button onClick={() => setIsConfiguringBudget(true)} className="p-3 bg-white/80 dark:bg-dark-border/50 rounded-2xl shadow-sm active:scale-90 transition-transform"><Settings size={20} className="text-gray-600 dark:text-gray-300" /></button>
         </div>
@@ -124,7 +156,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
                 <p className="text-[10px] text-gray-400 uppercase font-black tracking-wider">{new Date(item.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
               </div>
               <div className="flex flex-col items-end">
-                <span className="font-black text-blue-600 dark:text-blue-400 text-lg">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price)}</span>
+                <span className="font-black text-blue-600 dark:text-blue-400 text-lg">{formatCurrency(item.price)}</span>
                 <div className="flex -mr-2">
                   <button onClick={(e) => { e.stopPropagation(); setItems(prev => [{...item, id: Date.now().toString(), timestamp: Date.now()}, ...prev]); }} className="p-3 text-gray-300 hover:text-blue-500"><Copy size={16} /></button>
                   <button onClick={(e) => { e.stopPropagation(); if(confirm('Excluir item?')) setItems(prev => prev.filter(i => i.id !== item.id)); }} className="p-3 text-gray-300 hover:text-red-500"><Trash2 size={16} /></button>
@@ -225,15 +257,25 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
           <div className="bg-white dark:bg-dark-card w-full rounded-t-[3rem] p-8 pb-12 space-y-6 animate-in slide-in-from-bottom-full duration-500">
              <div className="flex justify-between items-center"><h3 className="text-xl font-black dark:text-white uppercase tracking-tight">Finalizar Conta</h3><button onClick={() => setIsFinishing(false)} className="text-gray-400 p-2"><X /></button></div>
              <div className="p-6 bg-blue-600 text-white rounded-3xl space-y-4 shadow-xl">
-                <div className="flex justify-between font-bold opacity-80 text-sm"><span>Subtotal:</span><span>R$ {total.toFixed(2)}</span></div>
+                <div className="flex justify-between font-bold opacity-80 text-sm"><span>Subtotal:</span><span>{formatCurrency(total)}</span></div>
                 <div className="flex justify-between items-center border-t border-white/10 pt-4">
-                  <div className="flex items-center gap-3 font-bold">
-                    <span>Taxa Serviço (10%)</span>
-                    <input type="checkbox" checked={includeTip} onChange={e => setIncludeTip(e.target.checked)} className="w-6 h-6 rounded-lg bg-white/20 border-none accent-white cursor-pointer" />
+                  <div className="flex items-center gap-3 font-bold group">
+                    <label className="flex items-center gap-3 cursor-pointer select-none">
+                      <div className="relative w-7 h-7">
+                        <input 
+                          type="checkbox" 
+                          checked={includeTip} 
+                          onChange={e => setIncludeTip(e.target.checked)} 
+                          className="peer appearance-none w-7 h-7 rounded-lg border-2 border-white/30 bg-white/10 checked:bg-white checked:border-white transition-all cursor-pointer"
+                        />
+                        <CheckCircle2 size={16} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-blue-600 opacity-0 peer-checked:opacity-100 transition-opacity" />
+                      </div>
+                      <span>Taxa Serviço (10%)</span>
+                    </label>
                   </div>
-                  <span>R$ {(total * 0.1).toFixed(2)}</span>
+                  <span>{formatCurrency(total * 0.1)}</span>
                 </div>
-                <div className="flex justify-between text-3xl font-black border-t border-white/20 pt-4"><span>TOTAL:</span><span>R$ {(includeTip ? total * 1.1 : total).toFixed(2)}</span></div>
+                <div className="flex justify-between text-3xl font-black border-t border-white/20 pt-4"><span>TOTAL:</span><span>{formatCurrency(includeTip ? total * 1.1 : total)}</span></div>
              </div>
              <div className="flex justify-between items-center px-2 py-4 border-b border-gray-100 dark:border-dark-border">
                 <span className="text-sm font-black text-gray-400 uppercase tracking-widest">Rachar em:</span>
@@ -246,7 +288,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
              {splitCount > 1 && (
                <div className="bg-green-50 dark:bg-green-900/10 p-5 rounded-[1.5rem] flex justify-between items-center text-green-700 dark:text-green-400 border border-green-100 dark:border-green-900/20">
                  <span className="text-xs font-black uppercase tracking-tighter">Cada pessoa paga:</span>
-                 <span className="text-2xl font-black">R$ {((includeTip ? total * 1.1 : total) / splitCount).toFixed(2)}</span>
+                 <span className="text-2xl font-black">{formatCurrency((includeTip ? total * 1.1 : total) / splitCount)}</span>
                </div>
              )}
              <button onClick={() => { onFinish({ id: Date.now().toString(), items, date: Date.now(), total, splitCount, hasTip: includeTip, tipAmount: total*0.1, totalPerPerson: (includeTip?total*1.1:total)/splitCount }); setIsFinishing(false); }} className="w-full h-18 bg-green-600 text-white rounded-[1.5rem] font-black uppercase tracking-widest active:scale-95 transition-all shadow-xl shadow-green-500/20 py-5">Confirmar Pagamento</button>

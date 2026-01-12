@@ -5,7 +5,8 @@ import {
   Users, 
   Settings, 
   Plus,
-  Info
+  Info,
+  CheckCircle
 } from 'https://esm.sh/lucide-react@0.460.0';
 
 interface HelpViewProps {
@@ -17,6 +18,9 @@ const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
     <div className="p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
       <div className="flex justify-between items-center">
         <h3 className="text-2xl font-black text-gray-800 dark:text-white uppercase tracking-tight">Como usar</h3>
+        <div className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1">
+          <CheckCircle size={10} /> Stable
+        </div>
       </div>
 
       <div className="space-y-6">
@@ -40,7 +44,7 @@ const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
             <div>
               <h4 className="font-bold text-gray-800 dark:text-gray-100">Registre com Fotos</h4>
               <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-                Agora usando o sistema nativo! A câmera abre instantaneamente para registrar suas garrafas ou baldes.
+                A câmera nativa abre instantaneamente. As fotos agora são otimizadas para economizar espaço e evitar travamentos.
               </p>
             </div>
           </div>
@@ -52,7 +56,7 @@ const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
             <div>
               <h4 className="font-bold text-gray-800 dark:text-gray-100">Controle seu Orçamento</h4>
               <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-                Defina um <b>Limite da Noite</b>. A barra de progresso mudará de cor para te avisar quando você estiver chegando no teto.
+                Defina um <b>Limite da Noite</b>. Veja o quanto resta diretamente abaixo do valor total acumulado.
               </p>
             </div>
           </div>
@@ -81,7 +85,7 @@ const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
           <div className="pt-4 border-t border-gray-200 dark:border-dark-border flex flex-col items-center gap-1">
             <div className="flex items-center gap-2 text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">
               <Info size={14} />
-              Versão 1.6.0
+              Versão 1.6.2
             </div>
             <div className="text-[10px] font-bold text-gray-400 dark:text-gray-600 uppercase tracking-tighter">
               Desenvolvido por <a href="https://www.instagram.com/andersonlopesdsgn/" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-500 hover:underline">Anderson M Lopes</a>
