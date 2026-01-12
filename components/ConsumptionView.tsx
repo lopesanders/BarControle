@@ -137,7 +137,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
 
       {/* Lista de Itens */}
       <div className="space-y-4 pb-32">
-        <h3 className="text-sm font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 px-2">Pedidos da Noite</h3>
+        <h3 className="text-sm font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 px-2">Pedidos da Rodada</h3>
         {items.length === 0 ? (
           <div className="flex flex-col items-center py-20 text-gray-400">
              <div className="w-20 h-20 bg-gray-100 dark:bg-dark-card rounded-full flex items-center justify-center mb-4">
@@ -237,12 +237,13 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
       {isConfiguringBudget && (
         <div className="fixed inset-0 bg-black/80 z-[100] flex items-end animate-in fade-in duration-300">
           <div className="bg-white dark:bg-dark-card w-full rounded-t-[3rem] p-8 pb-12 space-y-6 animate-in slide-in-from-bottom-full duration-500">
-            <div className="flex justify-between items-center"><h3 className="text-xl font-black dark:text-white uppercase tracking-tight">Limite da Noite</h3><button onClick={() => setIsConfiguringBudget(false)} className="text-gray-400 p-2"><X /></button></div>
+            <div className="flex justify-between items-center"><h3 className="text-xl font-black dark:text-white uppercase tracking-tight">Quanto vai gastar?</h3><button onClick={() => setIsConfiguringBudget(false)} className="text-gray-400 p-2"><X /></button></div>
             <div className="relative">
                <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-gray-400">R$</span>
                <input 
                  type="number" 
-                 value={budgetLimit} 
+                 value={budgetLimit === 0 ? '' : budgetLimit} 
+                 placeholder="Digite o limite"
                  onChange={e => setBudgetLimit(Number(e.target.value))} 
                  className="w-full pl-16 pr-6 py-6 bg-gray-100 dark:bg-dark-bg rounded-2xl text-2xl font-black dark:text-white outline-none focus:ring-2 focus:ring-blue-500" 
                />
