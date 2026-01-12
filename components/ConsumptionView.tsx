@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Camera, CheckCircle2, Settings, X, Pencil, Copy, Maximize2, Loader2, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, Camera, CheckCircle2, Settings, X, Copy, Maximize2, Loader2, RotateCcw } from 'lucide-react';
 import { ConsumptionItem, ConsumptionSession } from '../types';
 import ProgressBar from './ProgressBar';
 
@@ -25,7 +25,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
   const [isConfiguringBudget, setIsConfiguringBudget] = useState(false);
   const [fullscreenPhoto, setFullscreenPhoto] = useState<string | null>(null);
   const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
-  const [debugLog, setDebugLog] = useState<string>('');
+  const [statusMessage, setStatusMessage] = useState<string>('');
 
   const [newItemName, setNewItemName] = useState('');
   const [newItemPrice, setNewItemPrice] = useState('');
@@ -82,84 +82,75 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
     setNewItemPrice('');
     setNewItemPhoto(undefined);
     setIsProcessingPhoto(false);
-    setDebugLog('');
+    setStatusMessage('');
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Função robusta de processamento de imagem para Android
+  const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) {
-      setDebugLog('Nenhum arquivo selecionado.');
-      return;
-    }
+    if (!file) return;
 
-    setDebugLog('Lendo imagem...');
     setIsProcessingPhoto(true);
+    setStatusMessage('Otimizando...');
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      const result = event.target?.result as string;
-      if (!result) {
-        setDebugLog('Erro na leitura do arquivo.');
+      const base64Data = event.target?.result as string;
+      if (!base64Data) {
+        setStatusMessage('Erro ao ler arquivo.');
         setIsProcessingPhoto(false);
         return;
       }
 
+      // Redimensionar para economizar espaço no localStorage do Android
       const img = new Image();
       img.onload = () => {
-        setDebugLog('Otimizando...');
-        try {
-          const canvas = document.createElement('canvas');
-          const MAX_DIM = 600; // Aumentado um pouco para melhor qualidade
-          let width = img.width;
-          let height = img.height;
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 800; 
+        const MAX_HEIGHT = 800;
+        let width = img.width;
+        let height = img.height;
 
-          if (width > height) {
-            if (width > MAX_DIM) {
-              height *= MAX_DIM / width;
-              width = MAX_DIM;
-            }
-          } else {
-            if (height > MAX_DIM) {
-              width *= MAX_DIM / height;
-              height = MAX_DIM;
-            }
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
           }
-
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          
-          if (ctx) {
-            ctx.fillStyle = "#ffffff";
-            ctx.fillRect(0, 0, width, height);
-            ctx.drawImage(img, 0, 0, width, height);
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.7); 
-            
-            if (dataUrl && dataUrl.length > 500) {
-              setNewItemPhoto(dataUrl);
-              setDebugLog('');
-            } else {
-              setDebugLog('Erro: Imagem corrompida.');
-            }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
           }
-        } catch (err) {
-          setDebugLog('Erro no processamento.');
-        } finally {
-          setIsProcessingPhoto(false);
-          if (fileInputRef.current) fileInputRef.current.value = ""; 
         }
-      };
-      img.onerror = () => {
-        setDebugLog('Erro ao carregar imagem.');
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const finalBase64 = canvas.toDataURL('image/jpeg', 0.6);
+          setNewItemPhoto(finalBase64);
+          setStatusMessage('');
+        }
         setIsProcessingPhoto(false);
       };
-      img.src = result;
+      img.onerror = () => {
+        setStatusMessage('Erro na imagem.');
+        setIsProcessingPhoto(false);
+      };
+      img.src = base64Data;
     };
     reader.onerror = () => {
-      setDebugLog('Erro no carregador.');
+      setStatusMessage('Falha no leitor.');
       setIsProcessingPhoto(false);
     };
     reader.readAsDataURL(file);
+  };
+
+  const triggerCamera = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
   };
 
   const removeItem = (e: React.MouseEvent, id: string) => {
@@ -263,7 +254,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
                     </>
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-gray-300 dark:text-gray-700">
-                      <BeerIcon size={24} />
+                      <Camera size={24} />
                     </div>
                   )}
                 </div>
@@ -340,81 +331,97 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
         )}
       </div>
 
-      {/* Add/Edit Modal */}
+      {/* Redesigned Add/Edit Modal (Novo Pedido) */}
       {isAdding && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-end animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-dark-card w-full rounded-t-[2.5rem] p-8 pb-12 space-y-6 animate-in slide-in-from-bottom-full duration-300 overflow-y-auto max-h-[90vh]">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-end animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-dark-card w-full rounded-t-[2.5rem] p-8 pb-12 space-y-8 animate-in slide-in-from-bottom-full duration-300 overflow-y-auto max-h-[95vh]">
             <div className="flex justify-between items-center">
-              <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">
-                {editingItem ? 'Editar Pedido' : 'Novo Pedido'}
+              <h3 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">
+                {editingItem ? 'Editar Pedido' : 'O que vai pedir?'}
               </h3>
-              <button onClick={closeModal} className="p-4 -mr-4 text-gray-400"><X /></button>
+              <button onClick={closeModal} className="p-4 -mr-4 text-gray-400 active:scale-90 transition-transform"><X size={28} /></button>
             </div>
 
-            <form onSubmit={handleSaveItem} className="space-y-6">
-              <div className="grid grid-cols-3 gap-4">
-                <div className="col-span-2 space-y-1">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase ml-1">Produto</span>
+            <form onSubmit={handleSaveItem} className="space-y-8">
+              {/* Photo Area - Redesigned for Camera Focus */}
+              <div className="flex flex-col items-center gap-4">
+                <div 
+                  onClick={triggerCamera}
+                  className={`group relative w-48 h-48 rounded-[3rem] border-4 border-dashed flex items-center justify-center overflow-hidden transition-all active:scale-95 ${
+                    newItemPhoto ? 'border-blue-500' : 'border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-bg'
+                  }`}
+                >
+                  {isProcessingPhoto ? (
+                    <div className="flex flex-col items-center gap-3">
+                       <Loader2 className="text-blue-500 animate-spin" size={40} />
+                       <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">{statusMessage}</span>
+                    </div>
+                  ) : newItemPhoto ? (
+                    <>
+                      <img src={newItemPhoto} className="w-full h-full object-cover" alt="Foto do produto" />
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <RotateCcw className="text-white" size={32} />
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center gap-2 text-gray-400 dark:text-gray-600">
+                      <div className="p-5 bg-white dark:bg-dark-card rounded-full shadow-lg mb-2">
+                        <Camera size={40} className="text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <span className="text-[10px] font-black uppercase tracking-tighter">Tirar Foto do Produto</span>
+                    </div>
+                  )}
+                  
+                  {/* Hidden Input Forced for Camera */}
+                  <input 
+                    type="file" 
+                    ref={fileInputRef}
+                    accept="image/jpeg,image/png" 
+                    capture="environment"
+                    onChange={handlePhotoCapture}
+                    className="hidden"
+                    disabled={isProcessingPhoto}
+                  />
+                </div>
+                {newItemPhoto && (
+                  <button 
+                    type="button" 
+                    onClick={() => setNewItemPhoto(undefined)}
+                    className="text-xs font-bold text-red-500 uppercase tracking-widest bg-red-50 dark:bg-red-900/10 px-4 py-2 rounded-full"
+                  >
+                    Remover Foto
+                  </button>
+                )}
+              </div>
+
+              {/* Form Fields */}
+              <div className="space-y-5">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase ml-2 tracking-widest">Nome do Item</label>
                   <input 
                     type="text" 
                     value={newItemName}
                     onChange={e => setNewItemName(e.target.value)}
-                    placeholder="Ex: Chopp" 
-                    className="w-full px-5 py-4 bg-gray-100 dark:bg-dark-bg border-none rounded-2xl font-bold dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="Ex: Heineken 600ml" 
+                    className="w-full px-6 py-5 bg-gray-100 dark:bg-dark-bg border-none rounded-[2rem] text-lg font-bold dark:text-white focus:ring-4 focus:ring-blue-500/20 outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-600"
                     required
                   />
                 </div>
-                <div className="col-span-1 space-y-1">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase ml-1">Preço</span>
-                  <input 
-                    type="number" 
-                    step="0.01"
-                    value={newItemPrice}
-                    onChange={e => setNewItemPrice(e.target.value)}
-                    placeholder="0,00" 
-                    className="w-full px-4 py-4 bg-gray-100 dark:bg-dark-bg border-none rounded-2xl font-bold dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center gap-5 p-4 bg-gray-50 dark:bg-dark-bg rounded-2xl relative overflow-hidden">
-                <div className={`relative w-24 h-24 bg-white dark:bg-dark-card rounded-2xl border-2 border-dashed flex items-center justify-center overflow-hidden transition-colors ${isProcessingPhoto ? 'border-blue-500' : 'border-gray-200 dark:border-dark-border'}`}>
-                  {isProcessingPhoto ? (
-                    <div className="flex flex-col items-center gap-2">
-                       <Loader2 className="text-blue-500 animate-spin" size={24} />
-                       <span className="text-[8px] font-black text-blue-500 uppercase">Processando</span>
-                    </div>
-                  ) : newItemPhoto ? (
-                    <img src={newItemPhoto} className="w-full h-full object-cover" alt="Preview" />
-                  ) : (
-                    <Camera className="text-gray-300 dark:text-gray-600" />
-                  )}
-                  <input 
-                    type="file" 
-                    ref={fileInputRef}
-                    accept="image/*" 
-                    capture="environment"
-                    onChange={handleFileChange}
-                    className="absolute inset-0 opacity-0 cursor-pointer disabled:pointer-events-none"
-                    disabled={isProcessingPhoto}
-                  />
-                </div>
-                <div className="flex-1 space-y-2">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed font-medium">
-                    {isProcessingPhoto ? (debugLog || 'Processando...') : newItemPhoto ? 'Foto capturada!' : 'Toque no quadrado acima para abrir a câmera.'}
-                  </p>
-                  
-                  <div className="flex gap-3">
-                    {newItemPhoto && !isProcessingPhoto && (
-                      <button 
-                        type="button" 
-                        onClick={() => setNewItemPhoto(undefined)}
-                        className="flex items-center gap-1 text-[10px] font-bold text-red-500 uppercase active:opacity-50"
-                      >
-                        <RefreshCw size={10} /> Tirar outra
-                      </button>
-                    )}
+                
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase ml-2 tracking-widest">Preço Unitário</label>
+                  <div className="relative">
+                    <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-gray-400 dark:text-gray-600 text-lg">R$</span>
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      inputMode="decimal"
+                      value={newItemPrice}
+                      onChange={e => setNewItemPrice(e.target.value)}
+                      placeholder="0,00" 
+                      className="w-full pl-16 pr-6 py-5 bg-gray-100 dark:bg-dark-bg border-none rounded-[2rem] text-2xl font-black dark:text-white focus:ring-4 focus:ring-blue-500/20 outline-none transition-all"
+                      required
+                    />
                   </div>
                 </div>
               </div>
@@ -422,16 +429,16 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
               <button 
                 type="submit"
                 disabled={isProcessingPhoto}
-                className={`w-full h-16 text-white rounded-2xl shadow-lg font-black uppercase tracking-widest active:scale-95 transition-transform disabled:opacity-50 disabled:scale-100 ${editingItem ? 'bg-amber-600' : 'bg-blue-600'}`}
+                className={`w-full h-20 text-white rounded-[2rem] shadow-2xl shadow-blue-500/20 font-black uppercase tracking-widest text-lg active:scale-95 transition-all disabled:opacity-50 disabled:scale-100 ${editingItem ? 'bg-amber-600' : 'bg-blue-600'}`}
               >
-                {isProcessingPhoto ? 'Processando...' : editingItem ? 'Confirmar Edição' : 'Salvar Pedido'}
+                {isProcessingPhoto ? 'Processando...' : editingItem ? 'Atualizar Pedido' : 'Adicionar ao Round'}
               </button>
             </form>
           </div>
         </div>
       )}
 
-      {/* Restante dos modais mantidos */}
+      {/* History Finish Modal */}
       {isFinishing && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-end animate-in fade-in duration-200">
            <div className="bg-white dark:bg-dark-card w-full rounded-t-[2.5rem] p-8 pb-12 space-y-6 animate-in slide-in-from-bottom-full duration-300">
