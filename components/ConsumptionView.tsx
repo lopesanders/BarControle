@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Camera, CheckCircle2, Settings, X, Copy, Maximize2, Loader2, RotateCcw } from 'lucide-react';
+import { Plus, Trash2, Camera, CheckCircle2, Settings, X, Copy, Maximize2, Loader2, RotateCcw, AlertTriangle } from 'lucide-react';
 import { ConsumptionItem, ConsumptionSession } from '../types';
 import ProgressBar from './ProgressBar';
 
@@ -85,13 +85,12 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
     setStatusMessage('');
   };
 
-  // Função robusta de processamento de imagem para Android
   const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setIsProcessingPhoto(true);
-    setStatusMessage('Otimizando...');
+    setStatusMessage('Otimizando imagem...');
 
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -102,24 +101,22 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
         return;
       }
 
-      // Redimensionar para economizar espaço no localStorage do Android
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 800; 
-        const MAX_HEIGHT = 800;
+        const MAX_DIM = 800;
         let width = img.width;
         let height = img.height;
 
         if (width > height) {
-          if (width > MAX_WIDTH) {
-            height *= MAX_WIDTH / width;
-            width = MAX_WIDTH;
+          if (width > MAX_DIM) {
+            height *= MAX_DIM / width;
+            width = MAX_DIM;
           }
         } else {
-          if (height > MAX_HEIGHT) {
-            width *= MAX_HEIGHT / height;
-            height = MAX_HEIGHT;
+          if (height > MAX_DIM) {
+            width *= MAX_DIM / height;
+            height = MAX_DIM;
           }
         }
 
@@ -149,7 +146,10 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
 
   const triggerCamera = () => {
     if (fileInputRef.current) {
-      fileInputRef.current.click();
+      // Pequeno delay para garantir que o clique ocorra após qualquer transição de UI
+      setTimeout(() => {
+        fileInputRef.current?.click();
+      }, 100);
     }
   };
 
@@ -187,11 +187,6 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
     setIsFinishing(false);
     setSplitCount(1);
     setIncludeTip(false);
-  };
-
-  const openFullscreen = (e: React.MouseEvent, photo: string) => {
-    e.stopPropagation();
-    setFullscreenPhoto(photo);
   };
 
   return (
@@ -243,7 +238,10 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
               >
                 <div 
                   className="w-14 h-14 rounded-xl overflow-hidden bg-gray-100 dark:bg-dark-bg shrink-0 relative group shadow-inner border border-gray-100 dark:border-dark-border"
-                  onClick={(e) => item.photo && openFullscreen(e, item.photo)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if(item.photo) setFullscreenPhoto(item.photo);
+                  }}
                 >
                   {item.photo ? (
                     <>
@@ -289,49 +287,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
         )}
       </div>
 
-      {/* Fullscreen Photo Viewer */}
-      {fullscreenPhoto && (
-        <div 
-          className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in duration-300"
-          onClick={() => setFullscreenPhoto(null)}
-        >
-          <button 
-            className="absolute top-10 right-6 p-4 text-white hover:bg-white/10 rounded-full transition-colors"
-            onClick={() => setFullscreenPhoto(null)}
-          >
-            <X size={32} />
-          </button>
-          <div className="w-full h-full flex items-center justify-center">
-             <img 
-                src={fullscreenPhoto} 
-                className="max-w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl animate-in zoom-in-95 duration-300"
-                alt="Foto em tela cheia"
-              />
-          </div>
-        </div>
-      )}
-
-      {/* Floating Action Buttons */}
-      <div className="fixed bottom-24 left-0 right-0 max-w-md mx-auto px-6 flex gap-3 z-30 pointer-events-none">
-        <button 
-          onClick={() => setIsAdding(true)}
-          className="flex-1 h-14 bg-blue-600 text-white rounded-2xl shadow-xl shadow-blue-500/20 flex items-center justify-center gap-2 font-black active:scale-95 pointer-events-auto transition-transform"
-        >
-          <Plus size={24} />
-          PEDIR
-        </button>
-        {items.length > 0 && (
-          <button 
-            onClick={() => setIsFinishing(true)}
-            className="flex-1 h-14 bg-green-600 text-white rounded-2xl shadow-xl shadow-green-500/20 flex items-center justify-center gap-2 font-black active:scale-95 pointer-events-auto transition-transform"
-          >
-            <CheckCircle2 size={24} />
-            CONTA
-          </button>
-        )}
-      </div>
-
-      {/* Redesigned Add/Edit Modal (Novo Pedido) */}
+      {/* Add/Edit Modal (Novo Pedido) */}
       {isAdding && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-end animate-in fade-in duration-200">
           <div className="bg-white dark:bg-dark-card w-full rounded-t-[2.5rem] p-8 pb-12 space-y-8 animate-in slide-in-from-bottom-full duration-300 overflow-y-auto max-h-[95vh]">
@@ -343,12 +299,12 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
             </div>
 
             <form onSubmit={handleSaveItem} className="space-y-8">
-              {/* Photo Area - Redesigned for Camera Focus */}
+              {/* Photo Area - Optimized for Camera Intent */}
               <div className="flex flex-col items-center gap-4">
                 <div 
                   onClick={triggerCamera}
                   className={`group relative w-48 h-48 rounded-[3rem] border-4 border-dashed flex items-center justify-center overflow-hidden transition-all active:scale-95 ${
-                    newItemPhoto ? 'border-blue-500' : 'border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-bg'
+                    newItemPhoto ? 'border-blue-500' : 'border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-bg shadow-inner'
                   }`}
                 >
                   {isProcessingPhoto ? (
@@ -368,21 +324,31 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
                       <div className="p-5 bg-white dark:bg-dark-card rounded-full shadow-lg mb-2">
                         <Camera size={40} className="text-blue-600 dark:text-blue-400" />
                       </div>
-                      <span className="text-[10px] font-black uppercase tracking-tighter">Tirar Foto do Produto</span>
+                      <span className="text-[10px] font-black uppercase tracking-tighter">ABRIR CÂMERA AGORA</span>
                     </div>
                   )}
                   
-                  {/* Hidden Input Forced for Camera */}
+                  {/* FORÇA BRUTA: accept="image/*" e capture="environment" */}
                   <input 
                     type="file" 
                     ref={fileInputRef}
-                    accept="image/jpeg,image/png" 
+                    accept="image/*" 
                     capture="environment"
                     onChange={handlePhotoCapture}
                     className="hidden"
                     disabled={isProcessingPhoto}
                   />
                 </div>
+
+                {!newItemPhoto && (
+                  <div className="flex items-start gap-2 bg-amber-50 dark:bg-amber-900/10 p-3 rounded-2xl border border-amber-100 dark:border-amber-900/30 max-w-[280px]">
+                    <AlertTriangle className="text-amber-600 shrink-0" size={16} />
+                    <p className="text-[10px] text-amber-700 dark:text-amber-400 leading-tight">
+                      <b>Dica Android:</b> Se abrir a galeria, vá nas Configurações do seu celular > Apps > Quanto Deu? e <b>permita a Câmera</b>.
+                    </p>
+                  </div>
+                )}
+
                 {newItemPhoto && (
                   <button 
                     type="button" 
@@ -438,7 +404,49 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
         </div>
       )}
 
-      {/* History Finish Modal */}
+      {/* Fullscreen Photo Viewer */}
+      {fullscreenPhoto && (
+        <div 
+          className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in duration-300"
+          onClick={() => setFullscreenPhoto(null)}
+        >
+          <button 
+            className="absolute top-10 right-6 p-4 text-white hover:bg-white/10 rounded-full transition-colors"
+            onClick={() => setFullscreenPhoto(null)}
+          >
+            <X size={32} />
+          </button>
+          <div className="w-full h-full flex items-center justify-center">
+             <img 
+                src={fullscreenPhoto} 
+                className="max-w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl animate-in zoom-in-95 duration-300"
+                alt="Foto em tela cheia"
+              />
+          </div>
+        </div>
+      )}
+
+      {/* Floating Action Buttons */}
+      <div className="fixed bottom-24 left-0 right-0 max-w-md mx-auto px-6 flex gap-3 z-30 pointer-events-none">
+        <button 
+          onClick={() => setIsAdding(true)}
+          className="flex-1 h-14 bg-blue-600 text-white rounded-2xl shadow-xl shadow-blue-500/20 flex items-center justify-center gap-2 font-black active:scale-95 pointer-events-auto transition-transform"
+        >
+          <Plus size={24} />
+          PEDIR
+        </button>
+        {items.length > 0 && (
+          <button 
+            onClick={() => setIsFinishing(true)}
+            className="flex-1 h-14 bg-green-600 text-white rounded-2xl shadow-xl shadow-green-500/20 flex items-center justify-center gap-2 font-black active:scale-95 pointer-events-auto transition-transform"
+          >
+            <CheckCircle2 size={24} />
+            CONTA
+          </button>
+        )}
+      </div>
+
+      {/* Histórico/Fechamento Modal */}
       {isFinishing && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-end animate-in fade-in duration-200">
            <div className="bg-white dark:bg-dark-card w-full rounded-t-[2.5rem] p-8 pb-12 space-y-6 animate-in slide-in-from-bottom-full duration-300">
@@ -505,7 +513,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
         </div>
       )}
 
-      {/* Budget Limit Modal */}
+      {/* Configuração de Orçamento Modal */}
       {isConfiguringBudget && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-end animate-in fade-in duration-200">
           <div className="bg-white dark:bg-dark-card w-full rounded-t-[2.5rem] p-8 pb-12 space-y-6 animate-in slide-in-from-bottom-full duration-300">

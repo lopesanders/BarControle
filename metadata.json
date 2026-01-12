@@ -11,5 +11,9 @@
     "android.permission.WRITE_EXTERNAL_STORAGE",
     "android.hardware.camera",
     "android.hardware.camera.autofocus"
+  ],
+  "features": [
+    "android.hardware.camera",
+    "android.hardware.camera.autofocus"
   ]
 }

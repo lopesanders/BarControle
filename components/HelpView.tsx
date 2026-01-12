@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { X, Beer, CheckCircle2, History, Info, Camera } from 'lucide-react';
+import { X, Beer, CheckCircle2, History, Info, Camera, ShieldAlert } from 'lucide-react';
 
 interface HelpViewProps {
   onClose: () => void;
@@ -20,8 +20,8 @@ const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
               <Camera size={24} />
             </div>
             <div>
-              <h4 className="font-bold text-gray-800 dark:text-gray-100">Fotos do Pedido</h4>
-              <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">Toque no ícone da câmera ao pedir. O Android abrirá sua câmera para registrar o item na hora.</p>
+              <h4 className="font-bold text-gray-800 dark:text-gray-100">Câmera em Tempo Real</h4>
+              <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">Toque na câmera para registrar seu pedido. <b>Importante:</b> Se abrir a galeria, você precisa dar permissão nas configurações do Android.</p>
             </div>
           </div>
 
@@ -30,8 +30,8 @@ const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
               <Info size={24} />
             </div>
             <div>
-              <h4 className="font-bold text-gray-800 dark:text-gray-100">Limite de Gastos</h4>
-              <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">Mantenha o controle do seu bolso com a barra de progresso que avisa quando o orçamento está acabando.</p>
+              <h4 className="font-bold text-gray-800 dark:text-gray-100">Limite da Noite</h4>
+              <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">Defina seu teto de gastos. A barra muda de cor quando você está perto de estourar o limite.</p>
             </div>
           </div>
 
@@ -40,36 +40,42 @@ const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
               <CheckCircle2 size={24} />
             </div>
             <div>
-              <h4 className="font-bold text-gray-800 dark:text-gray-100">Divisão Justa</h4>
-              <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">Na hora de pagar, o app calcula a gorjeta e divide o valor igualmente entre seus amigos.</p>
+              <h4 className="font-bold text-gray-800 dark:text-gray-100">Conta Dividida</h4>
+              <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">Adicione a gorjeta e divida com os amigos de forma instantânea.</p>
             </div>
           </div>
         </section>
 
+        <div className="p-5 bg-amber-50 dark:bg-amber-900/20 rounded-3xl border border-amber-200 dark:border-amber-800 space-y-3">
+          <div className="flex items-center gap-2 text-amber-800 dark:text-amber-400 font-black text-xs uppercase">
+            <ShieldAlert size={16} /> Problemas com a Câmera?
+          </div>
+          <p className="text-[10px] text-amber-700 dark:text-amber-500 leading-tight">
+            1. Saia do app.<br/>
+            2. Pressione o ícone do app e vá em <b>Informações do App</b>.<br/>
+            3. Vá em <b>Permissões</b> > <b>Câmera</b>.<br/>
+            4. Selecione <b>"Permitir durante o uso"</b>.
+          </p>
+        </div>
+
         <div className="p-6 bg-gray-100 dark:bg-dark-card rounded-[2rem] space-y-4 border border-gray-200 dark:border-dark-border shadow-inner">
           <div className="flex justify-between items-center text-sm">
             <span className="text-gray-500 dark:text-gray-400 font-medium">Versão do App</span>
-            <span className="font-black text-gray-800 dark:text-white">1.3.0</span>
+            <span className="font-black text-gray-800 dark:text-white">1.3.1</span>
           </div>
-          
           <div className="flex justify-between items-start text-sm pt-2 border-t border-gray-200 dark:border-dark-border">
             <span className="text-gray-500 dark:text-gray-400 font-medium">Desenvolvedor</span>
             <div className="text-right">
               <p className="font-black text-blue-600 dark:text-blue-400">Anderson M Lopes</p>
-              <p className="text-[10px] text-gray-400 uppercase tracking-tighter">Mobile Expert</p>
             </div>
           </div>
-          
-          <p className="text-[10px] text-gray-400 dark:text-gray-500 text-center pt-2 italic leading-tight">
-            "Para melhor performance da câmera, aceite todas as permissões de mídia solicitadas pelo sistema."
-          </p>
         </div>
 
         <button 
           onClick={onClose}
           className="w-full h-16 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest active:scale-95 transition-transform shadow-xl shadow-blue-500/20"
         >
-          Bora Beber!
+          Tudo certo!
         </button>
       </div>
     </div>
