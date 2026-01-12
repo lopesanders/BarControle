@@ -31,6 +31,11 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
 
   const [splitCount, setSplitCount] = useState(1);
   const [includeTip, setIncludeTip] = useState(false);
+
+  // Swipe logic states
+  const [swipedItemId, setSwipedItemId] = useState<string | null>(null);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [currentSwipeOffset, setCurrentSwipeOffset] = useState<number>(0);
   
   const total = items.reduce((acc, item) => acc + item.price, 0);
 
@@ -48,7 +53,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 500; // Redução agressiva para poupar localStorage
+        const MAX_WIDTH = 500;
         let width = img.width;
         let height = img.height;
 
@@ -61,7 +66,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         ctx?.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', 0.5)); // Qualidade 50%
+        resolve(canvas.toDataURL('image/jpeg', 0.5));
       };
       img.src = base64;
     });
@@ -112,6 +117,48 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
   };
 
+  const handleDelete = (id: string) => {
+    if(confirm('Excluir item?')) {
+      setItems(prev => prev.filter(i => i.id !== id));
+      setSwipedItemId(null);
+      setCurrentSwipeOffset(0);
+    }
+  };
+
+  // Touch handlers for swipe
+  const onTouchStart = (e: React.TouchEvent, id: string) => {
+    setTouchStartX(e.touches[0].clientX);
+    if (swipedItemId !== id) {
+      setSwipedItemId(null);
+      setCurrentSwipeOffset(0);
+    }
+  };
+
+  const onTouchMove = (e: React.TouchEvent, id: string) => {
+    if (touchStartX === null) return;
+    const touchX = e.touches[0].clientX;
+    const diff = touchX - touchStartX;
+    
+    // Only allow left swipe
+    if (diff < 0) {
+      setCurrentSwipeOffset(diff);
+      setSwipedItemId(id);
+    } else if (swipedItemId === id && diff > 0) {
+      // Allow swiping back to close
+      setCurrentSwipeOffset(Math.min(0, -80 + diff));
+    }
+  };
+
+  const onTouchEnd = () => {
+    if (currentSwipeOffset < -60) {
+      setCurrentSwipeOffset(-80); // Snap to reveal delete button
+    } else {
+      setCurrentSwipeOffset(0);
+      setSwipedItemId(null);
+    }
+    setTouchStartX(null);
+  };
+
   return (
     <div className="p-4 space-y-6">
       {/* Widget de Orçamento */}
@@ -147,19 +194,50 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
           </div>
         ) : (
           items.map(item => (
-            <div key={item.id} className="bg-white dark:bg-dark-card p-4 rounded-3xl border border-gray-100 dark:border-dark-border flex items-center gap-4 active:scale-[0.98] transition-all" onClick={() => setEditingItem(item)}>
-              <div className="w-16 h-16 rounded-2xl overflow-hidden bg-gray-100 dark:bg-dark-bg shrink-0 flex items-center justify-center border border-gray-50 dark:border-dark-border" onClick={(e) => { e.stopPropagation(); if(item.photo) setFullscreenPhoto(item.photo); }}>
-                {item.photo ? <img src={item.photo} className="w-full h-full object-cover" /> : <CameraIcon size={24} className="text-gray-300" />}
+            <div key={item.id} className="relative overflow-hidden rounded-3xl group">
+              {/* Background Delete Action (Swipe) */}
+              <div className="absolute inset-0 bg-red-500 flex items-center justify-end px-6">
+                <button 
+                  onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
+                  className="text-white flex flex-col items-center gap-1 active:scale-90 transition-transform"
+                >
+                  <Trash2 size={24} />
+                  <span className="text-[10px] font-black uppercase">Excluir</span>
+                </button>
               </div>
-              <div className="flex-1 min-w-0">
-                <h4 className="font-bold text-gray-800 dark:text-gray-100 truncate text-lg leading-tight">{item.name}</h4>
-                <p className="text-[10px] text-gray-400 uppercase font-black tracking-wider">{new Date(item.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
-              </div>
-              <div className="flex flex-col items-end">
-                <span className="font-black text-blue-600 dark:text-blue-400 text-lg">{formatCurrency(item.price)}</span>
-                <div className="flex -mr-2">
-                  <button onClick={(e) => { e.stopPropagation(); setItems(prev => [{...item, id: Date.now().toString(), timestamp: Date.now()}, ...prev]); }} className="p-3 text-gray-300 hover:text-blue-500"><Copy size={16} /></button>
-                  <button onClick={(e) => { e.stopPropagation(); if(confirm('Excluir item?')) setItems(prev => prev.filter(i => i.id !== item.id)); }} className="p-3 text-gray-300 hover:text-red-500"><Trash2 size={16} /></button>
+
+              {/* Foreground Item */}
+              <div 
+                className="bg-white dark:bg-dark-card p-4 rounded-3xl border border-gray-100 dark:border-dark-border flex items-center gap-4 relative z-10 transition-transform duration-200"
+                style={{ 
+                  transform: swipedItemId === item.id ? `translateX(${currentSwipeOffset}px)` : 'translateX(0px)' 
+                }}
+                onTouchStart={(e) => onTouchStart(e, item.id)}
+                onTouchMove={(e) => onTouchMove(e, item.id)}
+                onTouchEnd={onTouchEnd}
+                onClick={() => {
+                  if (swipedItemId === item.id && currentSwipeOffset !== 0) {
+                    setSwipedItemId(null);
+                    setCurrentSwipeOffset(0);
+                  } else {
+                    setEditingItem(item);
+                  }
+                }}
+              >
+                <div className="w-16 h-16 rounded-2xl overflow-hidden bg-gray-100 dark:bg-dark-bg shrink-0 flex items-center justify-center border border-gray-50 dark:border-dark-border" onClick={(e) => { e.stopPropagation(); if(item.photo) setFullscreenPhoto(item.photo); }}>
+                  {item.photo ? <img src={item.photo} className="w-full h-full object-cover" /> : <CameraIcon size={24} className="text-gray-300" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-bold text-gray-800 dark:text-gray-100 truncate text-lg leading-tight">{item.name}</h4>
+                  <p className="text-[10px] text-gray-400 uppercase font-black tracking-wider">{new Date(item.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
+                </div>
+                <div className="flex flex-col items-end">
+                  <span className="font-black text-blue-600 dark:text-blue-400 text-lg">{formatCurrency(item.price)}</span>
+                  <div className="flex -mr-2">
+                    <button onClick={(e) => { e.stopPropagation(); setItems(prev => [{...item, id: Date.now().toString(), timestamp: Date.now()}, ...prev]); }} className="p-3 text-gray-300 hover:text-blue-500"><Copy size={16} /></button>
+                    {/* Ícone de excluir restaurado e visível em mobile */}
+                    <button onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }} className="p-3 text-gray-300 hover:text-red-500"><Trash2 size={16} /></button>
+                  </div>
                 </div>
               </div>
             </div>
