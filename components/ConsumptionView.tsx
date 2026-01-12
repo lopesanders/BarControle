@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'https://esm.sh/react@19.0.0';
 import { Camera as CameraIcon, Plus, Trash2, CheckCircle2, Settings, X, Copy, RotateCcw } from 'https://esm.sh/lucide-react@0.460.0';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { Haptics } from '@capacitor/haptics';
 import { ConsumptionItem, ConsumptionSession } from '../types.ts';
 import ProgressBar from './ProgressBar.tsx';
 
@@ -105,18 +106,20 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
     }
   };
 
-  const handleSaveItem = (e: React.FormEvent) => {
+  const handleSaveItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newItemName || !newItemPrice) return;
     const price = parseFloat(newItemPrice.replace(',', '.'));
     if (isNaN(price)) return;
 
-    // Trigger vibration if threshold reached (90%)
+    // Trigger vibration if threshold reached (90%) using Haptics plugin
     const diff = editingItem ? (price - editingItem.price) : price;
     const futureTotal = total + diff;
     if (futureTotal >= budgetLimit * 0.9) {
-      if (typeof navigator !== 'undefined' && navigator.vibrate) {
-        navigator.vibrate(3000);
+      try {
+        await Haptics.vibrate({ duration: 2000 });
+      } catch (err) {
+        console.warn('Haptics não disponível:', err);
       }
     }
 

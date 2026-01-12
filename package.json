@@ -1,6 +1,6 @@
 {
   "name": "quanto-deu-app",
-  "version": "1.6.4",
+  "version": "1.6.5",
   "private": true,
   "type": "module",
   "scripts": {
@@ -12,7 +12,8 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "lucide-react": "^0.460.0",
-    "@capacitor/camera": "^6.1.2"
+    "@capacitor/camera": "^6.1.2",
+    "@capacitor/haptics": "^6.0.0"
   },
   "devDependencies": {
     "@capacitor/android": "^6.0.0",
