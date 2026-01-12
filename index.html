@@ -14,6 +14,15 @@
             extend: {
               colors: {
                 dark: { bg: '#0a0a0a', card: '#171717', border: '#262626' }
+              },
+              animation: {
+                'blink-red-white': 'blink 0.5s linear infinite',
+              },
+              keyframes: {
+                blink: {
+                  '0%, 100%': { color: '#ef4444' }, // red-500
+                  '50%': { color: '#ffffff' },      // white
+                }
               }
             }
           }
@@ -32,7 +41,6 @@
             -webkit-tap-highlight-color: transparent;
             background-color: #f9fafb;
             overscroll-behavior-y: contain;
-            /* Garante que o body ocupe toda a área incluindo notches */
             min-height: 100vh;
             min-height: -webkit-fill-available;
         }
@@ -52,7 +60,6 @@
 
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* Ajustes de transição suave */
         .theme-transition {
             transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
         }

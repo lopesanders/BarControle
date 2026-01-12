@@ -47,7 +47,6 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
         hasAutoOpenedRef.current = true;
       }
     } else {
-      // Reset ref so when items are cleared (onFinish), it triggers again
       hasAutoOpenedRef.current = false;
     }
   }, [items.length]);
@@ -112,6 +111,15 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
     const price = parseFloat(newItemPrice.replace(',', '.'));
     if (isNaN(price)) return;
 
+    // Trigger vibration if threshold reached (90%)
+    const diff = editingItem ? (price - editingItem.price) : price;
+    const futureTotal = total + diff;
+    if (futureTotal >= budgetLimit * 0.9) {
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate(3000);
+      }
+    }
+
     if (editingItem) {
       setItems(prev => prev.map(item => item.id === editingItem.id ? { ...item, name: newItemName, price, photo: newItemPhoto } : item));
     } else {
@@ -140,7 +148,6 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
     }
   };
 
-  // Touch handlers for swipe
   const onTouchStart = (e: React.TouchEvent, id: string) => {
     setTouchStartX(e.touches[0].clientX);
     if (swipedItemId !== id) {
@@ -153,20 +160,17 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
     if (touchStartX === null) return;
     const touchX = e.touches[0].clientX;
     const diff = touchX - touchStartX;
-    
-    // Only allow left swipe
     if (diff < 0) {
       setCurrentSwipeOffset(diff);
       setSwipedItemId(id);
     } else if (swipedItemId === id && diff > 0) {
-      // Allow swiping back to close
       setCurrentSwipeOffset(Math.min(0, -80 + diff));
     }
   };
 
   const onTouchEnd = () => {
     if (currentSwipeOffset < -60) {
-      setCurrentSwipeOffset(-80); // Snap to reveal delete button
+      setCurrentSwipeOffset(-80);
     } else {
       setCurrentSwipeOffset(0);
       setSwipedItemId(null);
@@ -176,9 +180,9 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
 
   return (
     <div className="p-4 space-y-6">
-      {/* Widget de Orçamento */}
       <div className={`p-6 rounded-[2.5rem] shadow-xl border-2 transition-all duration-500 ${
-        (total / budgetLimit) >= 0.9 ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' :
+        (total / budgetLimit) >= 1.0 ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' :
+        (total / budgetLimit) >= 0.9 ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800' :
         (total / budgetLimit) >= 0.5 ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800' :
         'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
       }`}>
@@ -197,7 +201,6 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
         <ProgressBar current={total} total={budgetLimit} />
       </div>
 
-      {/* Lista de Itens */}
       <div className="space-y-4 pb-32">
         <h3 className="text-sm font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 px-2">Pedidos da Rodada</h3>
         {items.length === 0 ? (
@@ -210,7 +213,6 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
         ) : (
           items.map(item => (
             <div key={item.id} className="relative overflow-hidden rounded-3xl group">
-              {/* Background Delete Action (Swipe) */}
               <div className="absolute inset-0 bg-red-500 flex items-center justify-end px-6">
                 <button 
                   onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
@@ -221,7 +223,6 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
                 </button>
               </div>
 
-              {/* Foreground Item */}
               <div 
                 className="bg-white dark:bg-dark-card p-4 rounded-3xl border border-gray-100 dark:border-dark-border flex items-center gap-4 relative z-10 transition-transform duration-200"
                 style={{ 
@@ -259,7 +260,6 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
         )}
       </div>
 
-      {/* Modal Adicionar Item */}
       {isAdding && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-lg z-[100] flex items-end animate-in fade-in duration-300">
           <div className="bg-white dark:bg-dark-card w-full rounded-t-[3rem] p-8 pb-12 space-y-8 animate-in slide-in-from-bottom-full duration-500 overflow-y-auto max-h-[95vh]">
@@ -311,7 +311,6 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
         </div>
       )}
 
-      {/* Fullscreen Photo View */}
       {fullscreenPhoto && (
         <div className="fixed inset-0 z-[200] bg-black/95 flex items-center justify-center p-4 animate-in fade-in duration-300" onClick={() => setFullscreenPhoto(null)}>
           <button className="absolute top-10 right-6 text-white bg-white/10 p-4 rounded-full backdrop-blur-md"><X size={32} /></button>
@@ -319,13 +318,11 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
         </div>
       )}
 
-      {/* Botões de Ação na Base */}
       <div className="fixed bottom-24 left-0 right-0 max-w-md mx-auto px-6 flex gap-3 z-30 pointer-events-none">
         <button onClick={() => setIsAdding(true)} className="flex-1 h-16 bg-blue-600 text-white rounded-[1.5rem] shadow-2xl font-black active:scale-95 pointer-events-auto flex items-center justify-center gap-2 transition-all uppercase tracking-widest"><Plus size={24}/> Pedir</button>
         {items.length > 0 && <button onClick={() => setIsFinishing(true)} className="flex-1 h-16 bg-green-600 text-white rounded-[1.5rem] shadow-2xl font-black active:scale-95 pointer-events-auto flex items-center justify-center gap-2 transition-all uppercase tracking-widest"><CheckCircle2 size={24}/> Fechar</button>}
       </div>
 
-      {/* Modais de Orçamento e Fechamento */}
       {isConfiguringBudget && (
         <div className="fixed inset-0 bg-black/80 z-[100] flex items-end animate-in fade-in duration-300">
           <div className="bg-white dark:bg-dark-card w-full rounded-t-[3rem] p-8 pb-12 space-y-6 animate-in slide-in-from-bottom-full duration-500">
