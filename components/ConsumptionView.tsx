@@ -36,6 +36,21 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
   const [swipedItemId, setSwipedItemId] = useState<string | null>(null);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [currentSwipeOffset, setCurrentSwipeOffset] = useState<number>(0);
+
+  // Auto-open budget modal logic
+  const hasAutoOpenedRef = useRef(false);
+
+  useEffect(() => {
+    if (items.length === 0) {
+      if (!hasAutoOpenedRef.current) {
+        setIsConfiguringBudget(true);
+        hasAutoOpenedRef.current = true;
+      }
+    } else {
+      // Reset ref so when items are cleared (onFinish), it triggers again
+      hasAutoOpenedRef.current = false;
+    }
+  }, [items.length]);
   
   const total = items.reduce((acc, item) => acc + item.price, 0);
 
@@ -235,7 +250,6 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
                   <span className="font-black text-blue-600 dark:text-blue-400 text-lg">{formatCurrency(item.price)}</span>
                   <div className="flex -mr-2">
                     <button onClick={(e) => { e.stopPropagation(); setItems(prev => [{...item, id: Date.now().toString(), timestamp: Date.now()}, ...prev]); }} className="p-3 text-gray-300 hover:text-blue-500"><Copy size={16} /></button>
-                    {/* Ícone de excluir restaurado e visível em mobile */}
                     <button onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }} className="p-3 text-gray-300 hover:text-red-500"><Trash2 size={16} /></button>
                   </div>
                 </div>
