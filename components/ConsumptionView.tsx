@@ -55,22 +55,23 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
     return () => stopCamera();
   }, [isAdding]);
 
-  // Função que tenta abrir a câmera ao vivo
   const startCamera = async () => {
-    // Se estiver em um dispositivo móvel, as vezes é melhor ir direto para o seletor nativo
-    // para evitar problemas de permissão do WebView.
     setCameraError(null);
     setCameraMode('live');
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: { ideal: 'environment' } },
+        video: { 
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1080 },
+          height: { ideal: 1080 }
+        },
         audio: false 
       });
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play().catch(() => {
-           // Fallback se o play falhar
+        videoRef.current.play().catch((e) => {
+           console.error("Erro no play do vídeo:", e);
            setCameraMode('error');
         });
       }
@@ -78,8 +79,8 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
       console.error("Erro ao abrir câmera live:", err);
       setCameraMode('error');
       setCameraError("Câmera bloqueada");
-      // Tenta abrir o seletor nativo automaticamente se o live falhar
-      fileInputRef.current?.click();
+      // Se falhar o live, aciona o seletor nativo
+      handleNativeCamera();
     }
   };
 
@@ -106,9 +107,10 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
     }
   };
 
-  // Esta é a função MAIS SEGURA para Android: Abre a câmera nativa do sistema
   const handleNativeCamera = () => {
-    fileInputRef.current?.click();
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -119,7 +121,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX = 800;
+        const MAX = 1000;
         let w = img.width, h = img.height;
         if (w > h) { if (w > MAX) { h *= MAX/w; w = MAX; } }
         else { if (h > MAX) { w *= MAX/h; h = MAX; } }
@@ -159,7 +161,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
 
   return (
     <div className="p-4 space-y-6">
-      <div className={`p-5 rounded-[2rem] shadow-lg border-2 theme-transition ${
+      <div className={`p-5 rounded-[2.5rem] shadow-xl border-2 theme-transition ${
         (total / budgetLimit) >= 0.9 ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' :
         (total / budgetLimit) >= 0.5 ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800' :
         'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
@@ -172,7 +174,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
             </h2>
             <p className="text-[11px] font-black uppercase text-gray-500 mt-2">Limite: R$ {budgetLimit}</p>
           </div>
-          <button onClick={() => setIsConfiguringBudget(true)} className="p-3 bg-white/80 dark:bg-dark-border/50 rounded-2xl shadow-sm"><Settings size={20} className="text-gray-600 dark:text-gray-300" /></button>
+          <button onClick={() => setIsConfiguringBudget(true)} className="p-3 bg-white/80 dark:bg-dark-border/50 rounded-2xl shadow-sm hover:bg-white dark:hover:bg-dark-border transition-colors"><Settings size={20} className="text-gray-600 dark:text-gray-300" /></button>
         </div>
         <ProgressBar current={total} total={budgetLimit} />
       </div>
@@ -182,7 +184,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
         {items.length === 0 ? (
           <div className="flex flex-col items-center py-16 text-gray-400">
              <span className="text-4xl opacity-20 mb-4">🍺</span>
-            <p className="text-sm">Toque em PEDIR para começar!</p>
+            <p className="text-sm font-medium">Toque em PEDIR para começar!</p>
           </div>
         ) : (
           items.map(item => (
@@ -197,8 +199,8 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
               <div className="flex flex-col items-end">
                 <span className="font-black text-blue-600 dark:text-blue-400">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price)}</span>
                 <div className="flex -mr-2">
-                  <button onClick={(e) => { e.stopPropagation(); setItems(prev => [{...item, id: Date.now().toString(), timestamp: Date.now()}, ...prev]); }} className="p-3 text-gray-300"><Copy size={16} /></button>
-                  <button onClick={(e) => { e.stopPropagation(); if(confirm('Excluir?')) setItems(prev => prev.filter(i => i.id !== item.id)); }} className="p-3 text-gray-300"><Trash2 size={16} /></button>
+                  <button onClick={(e) => { e.stopPropagation(); setItems(prev => [{...item, id: Date.now().toString(), timestamp: Date.now()}, ...prev]); }} className="p-3 text-gray-300 hover:text-blue-500 transition-colors"><Copy size={16} /></button>
+                  <button onClick={(e) => { e.stopPropagation(); if(confirm('Excluir item?')) setItems(prev => prev.filter(i => i.id !== item.id)); }} className="p-3 text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
                 </div>
               </div>
             </div>
@@ -216,7 +218,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
 
             <form onSubmit={handleSaveItem} className="space-y-6">
               <div className="flex flex-col items-center gap-4">
-                <div className="relative w-full aspect-square max-w-[280px] rounded-[3rem] overflow-hidden bg-gray-50 dark:bg-dark-bg border-4 border-dashed border-gray-200 dark:border-dark-border">
+                <div className="relative w-full aspect-square max-w-[280px] rounded-[3.5rem] overflow-hidden bg-gray-50 dark:bg-dark-bg border-4 border-dashed border-gray-200 dark:border-dark-border">
                   {cameraMode === 'live' ? (
                     <div className="relative w-full h-full">
                       <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
@@ -234,11 +236,24 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
                     <button type="button" onClick={handleNativeCamera} className="w-full h-full flex flex-col items-center justify-center gap-3 text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-border transition-colors">
                       <Camera size={48} className="text-blue-600 dark:text-blue-400" />
                       <span className="text-[10px] font-black uppercase tracking-widest">Tirar Foto</span>
+                      <p className="text-[8px] opacity-50 uppercase mt-1">Abre câmera do sistema</p>
                     </button>
                   )}
                 </div>
-                {/* Input oculto que força a abertura da câmera nativa do Android */}
-                <input type="file" ref={fileInputRef} accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
+                
+                {/* 
+                  IMPORTANTE PARA ANDROID: 
+                  accept="image/*" (específico) + capture="environment" força o Android a abrir a Câmera diretamente.
+                  Se usar accept="image/*, video/*" ele pode dar opção de galeria.
+                */}
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  accept="image/*" 
+                  capture="environment" 
+                  className="hidden" 
+                  onChange={handleFileChange} 
+                />
                 <canvas ref={canvasRef} className="hidden" />
               </div>
 
@@ -251,7 +266,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
               </div>
 
               <button type="submit" className="w-full h-20 bg-blue-600 text-white rounded-[2rem] font-black uppercase tracking-widest text-lg shadow-2xl active:scale-95 transition-all">
-                {editingItem ? 'Salvar' : 'Adicionar'}
+                {editingItem ? 'Salvar Alterações' : 'Adicionar ao Pedido'}
               </button>
             </form>
           </div>
@@ -266,8 +281,8 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
       )}
 
       <div className="fixed bottom-24 left-0 right-0 max-w-md mx-auto px-6 flex gap-3 z-30 pointer-events-none">
-        <button onClick={() => setIsAdding(true)} className="flex-1 h-14 bg-blue-600 text-white rounded-2xl shadow-xl font-black active:scale-95 pointer-events-auto flex items-center justify-center gap-2 transition-all"><Plus size={24}/> PEDIR</button>
-        {items.length > 0 && <button onClick={() => setIsFinishing(true)} className="flex-1 h-14 bg-green-600 text-white rounded-2xl shadow-xl font-black active:scale-95 pointer-events-auto flex items-center justify-center gap-2 transition-all"><CheckCircle2 size={24}/> FECHAR</button>}
+        <button onClick={() => setIsAdding(true)} className="flex-1 h-16 bg-blue-600 text-white rounded-[1.5rem] shadow-2xl font-black active:scale-95 pointer-events-auto flex items-center justify-center gap-2 transition-all uppercase tracking-widest"><Plus size={24}/> Pedir</button>
+        {items.length > 0 && <button onClick={() => setIsFinishing(true)} className="flex-1 h-16 bg-green-600 text-white rounded-[1.5rem] shadow-2xl font-black active:scale-95 pointer-events-auto flex items-center justify-center gap-2 transition-all uppercase tracking-widest"><CheckCircle2 size={24}/> Fechar</button>}
       </div>
 
       {isConfiguringBudget && (
@@ -278,7 +293,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
                <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-gray-400">R$</span>
                <input type="number" value={budgetLimit} onChange={e => setBudgetLimit(Number(e.target.value))} className="w-full pl-16 pr-6 py-6 bg-gray-100 dark:bg-dark-bg rounded-2xl text-2xl font-black dark:text-white outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
-            <button onClick={() => setIsConfiguringBudget(false)} className="w-full h-16 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all">Salvar Limite</button>
+            <button onClick={() => setIsConfiguringBudget(false)} className="w-full h-16 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all">Salvar Orçamento</button>
           </div>
         </div>
       )}
@@ -286,14 +301,14 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
       {isFinishing && (
         <div className="fixed inset-0 bg-black/80 z-[100] flex items-end animate-in fade-in duration-300">
           <div className="bg-white dark:bg-dark-card w-full rounded-t-[2.5rem] p-8 pb-12 space-y-6 animate-in slide-in-from-bottom-full duration-500">
-             <div className="flex justify-between items-center"><h3 className="text-xl font-black dark:text-white uppercase tracking-tight">Fechar Conta</h3><button onClick={() => setIsFinishing(false)} className="text-gray-400 p-2"><X /></button></div>
-             <div className="p-6 bg-blue-600 text-white rounded-3xl space-y-4 shadow-lg">
-                <div className="flex justify-between font-bold opacity-80"><span>Subtotal:</span><span>R$ {total.toFixed(2)}</span></div>
-                <div className="flex justify-between items-center border-t border-white/10 pt-4"><div className="flex items-center gap-3 font-bold"><span>Serviço (10%)</span><input type="checkbox" checked={includeTip} onChange={e => setIncludeTip(e.target.checked)} className="w-6 h-6 rounded-lg bg-white/20 border-none accent-white" /></div><span>R$ {(total * 0.1).toFixed(2)}</span></div>
-                <div className="flex justify-between text-2xl font-black border-t border-white/20 pt-4"><span>TOTAL:</span><span>R$ {(includeTip ? total * 1.1 : total).toFixed(2)}</span></div>
+             <div className="flex justify-between items-center"><h3 className="text-xl font-black dark:text-white uppercase tracking-tight">Total da Conta</h3><button onClick={() => setIsFinishing(false)} className="text-gray-400 p-2"><X /></button></div>
+             <div className="p-6 bg-blue-600 text-white rounded-3xl space-y-4 shadow-xl">
+                <div className="flex justify-between font-bold opacity-80 text-sm"><span>Subtotal dos Itens:</span><span>R$ {total.toFixed(2)}</span></div>
+                <div className="flex justify-between items-center border-t border-white/10 pt-4"><div className="flex items-center gap-3 font-bold"><span>Taxa de Serviço (10%)</span><input type="checkbox" checked={includeTip} onChange={e => setIncludeTip(e.target.checked)} className="w-6 h-6 rounded-lg bg-white/20 border-none accent-white cursor-pointer" /></div><span>R$ {(total * 0.1).toFixed(2)}</span></div>
+                <div className="flex justify-between text-3xl font-black border-t border-white/20 pt-4"><span>TOTAL:</span><span>R$ {(includeTip ? total * 1.1 : total).toFixed(2)}</span></div>
              </div>
              <div className="flex justify-between items-center px-2 py-4 border-b border-gray-100 dark:border-dark-border">
-                <span className="text-sm font-black text-gray-400 uppercase tracking-widest">Dividir por:</span>
+                <span className="text-sm font-black text-gray-400 uppercase tracking-widest">Rachar em:</span>
                 <div className="flex items-center gap-6">
                   <button onClick={() => setSplitCount(Math.max(1, splitCount - 1))} className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-dark-bg font-black text-gray-600 dark:text-white active:bg-gray-200 transition-colors">-</button>
                   <span className="text-2xl font-black dark:text-white min-w-[1.5rem] text-center">{splitCount}</span>
@@ -301,12 +316,12 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
                 </div>
              </div>
              {splitCount > 1 && (
-               <div className="bg-green-50 dark:bg-green-900/10 p-4 rounded-2xl flex justify-between items-center text-green-700 dark:text-green-400 border border-green-100 dark:border-green-900/20">
-                 <span className="text-xs font-black uppercase tracking-tighter">Por pessoa:</span>
-                 <span className="text-xl font-black">R$ {((includeTip ? total * 1.1 : total) / splitCount).toFixed(2)}</span>
+               <div className="bg-green-50 dark:bg-green-900/10 p-5 rounded-[1.5rem] flex justify-between items-center text-green-700 dark:text-green-400 border border-green-100 dark:border-green-900/20">
+                 <span className="text-xs font-black uppercase tracking-tighter">Valor por pessoa:</span>
+                 <span className="text-2xl font-black">R$ {((includeTip ? total * 1.1 : total) / splitCount).toFixed(2)}</span>
                </div>
              )}
-             <button onClick={() => { onFinish({ id: Date.now().toString(), items, date: Date.now(), total, splitCount, hasTip: includeTip, tipAmount: total*0.1, totalPerPerson: (includeTip?total*1.1:total)/splitCount }); setIsFinishing(false); }} className="w-full h-16 bg-green-600 text-white rounded-2xl font-black uppercase tracking-widest active:scale-95 transition-all shadow-xl shadow-green-500/20">Confirmar Pagamento</button>
+             <button onClick={() => { onFinish({ id: Date.now().toString(), items, date: Date.now(), total, splitCount, hasTip: includeTip, tipAmount: total*0.1, totalPerPerson: (includeTip?total*1.1:total)/splitCount }); setIsFinishing(false); }} className="w-full h-18 bg-green-600 text-white rounded-[1.5rem] font-black uppercase tracking-widest active:scale-95 transition-all shadow-xl shadow-green-500/20 py-5">Confirmar e Finalizar</button>
           </div>
         </div>
       )}
