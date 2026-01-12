@@ -146,10 +146,10 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
 
   const triggerCamera = () => {
     if (fileInputRef.current) {
-      // Pequeno delay para garantir que o clique ocorra após qualquer transição de UI
+      // Forçar clique com delay mínimo
       setTimeout(() => {
         fileInputRef.current?.click();
-      }, 100);
+      }, 50);
     }
   };
 
@@ -328,12 +328,12 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
                     </div>
                   )}
                   
-                  {/* FORÇA BRUTA: accept="image/*" e capture="environment" */}
+                  {/* FORÇA BRUTA: capture="camera" (valor legado eficaz) e accept="image/*" */}
                   <input 
                     type="file" 
                     ref={fileInputRef}
                     accept="image/*" 
-                    capture="environment"
+                    capture="camera"
                     onChange={handlePhotoCapture}
                     className="hidden"
                     disabled={isProcessingPhoto}
@@ -344,7 +344,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
                   <div className="flex items-start gap-2 bg-amber-50 dark:bg-amber-900/10 p-3 rounded-2xl border border-amber-100 dark:border-amber-900/30 max-w-[280px]">
                     <AlertTriangle className="text-amber-600 shrink-0" size={16} />
                     <p className="text-[10px] text-amber-700 dark:text-amber-400 leading-tight">
-                      <b>Dica Android:</b> Se abrir a galeria, vá nas Configurações do seu celular > Apps > Quanto Deu? e <b>permita a Câmera</b>.
+                      <b>Dica Android:</b> Se abrir a galeria, vá nas Configurações do seu celular &gt; Apps &gt; Quanto Deu? e <b>permita a Câmera</b>.
                     </p>
                   </div>
                 )}
