@@ -46,7 +46,7 @@ const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
           </div>
 
           <div className="flex gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 shadow-sm">
+            <div className="w-12 h-12 rounded-2xl bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-blue-400 flex items-center justify-center shrink-0 shadow-sm">
               <History size={24} />
             </div>
             <div>
@@ -59,7 +59,7 @@ const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
         <div className="p-6 bg-gray-100 dark:bg-dark-card rounded-[2rem] space-y-4 border border-gray-200 dark:border-dark-border shadow-inner">
           <div className="flex justify-between items-center text-sm">
             <span className="text-gray-500 dark:text-gray-400 font-medium">Versão do App</span>
-            <span className="font-black text-gray-800 dark:text-white">1.2.7</span>
+            <span className="font-black text-gray-800 dark:text-white">1.2.8</span>
           </div>
           
           <div className="flex justify-between items-start text-sm pt-2 border-t border-gray-200 dark:border-dark-border">
@@ -72,11 +72,11 @@ const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
 
           <div className="flex justify-between items-center text-sm pt-2 border-t border-gray-200 dark:border-dark-border">
             <span className="text-gray-500 dark:text-gray-400 font-medium">Interface</span>
-            <span className="font-black text-gray-800 dark:text-white uppercase text-[10px]">Android WebView Fix Applied</span>
+            <span className="font-black text-gray-800 dark:text-white uppercase text-[10px]">Optimized Camera Flow</span>
           </div>
           
           <p className="text-[10px] text-gray-400 dark:text-gray-500 text-center pt-2 italic leading-tight">
-            "Dica: Se a foto não aparecer, certifique-se de permitir o acesso à câmera e arquivos nas configurações do seu Android."
+            "Dica: Ao tocar na câmera, escolha 'Câmera' para tirar a foto na hora."
           </p>
         </div>
 

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Camera, CheckCircle2, Settings, X, Pencil, Copy, Maximize2, Loader2, Play } from 'lucide-react';
+import { Plus, Trash2, Camera, CheckCircle2, Settings, X, Pencil, Copy, Maximize2, Loader2, RefreshCw } from 'lucide-react';
 import { ConsumptionItem, ConsumptionSession } from '../types';
 import ProgressBar from './ProgressBar';
 
@@ -85,55 +85,31 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
     setDebugLog('');
   };
 
-  const simulateCameraCapture = () => {
-    setIsProcessingPhoto(true);
-    setTimeout(() => {
-      const canvas = document.createElement('canvas');
-      canvas.width = 400;
-      canvas.height = 400;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        const grad = ctx.createLinearGradient(0, 0, 400, 400);
-        grad.addColorStop(0, '#1e3a8a');
-        grad.addColorStop(1, '#6366f1');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, 400, 400);
-        ctx.fillStyle = "white";
-        ctx.font = "100px Arial";
-        ctx.textAlign = "center";
-        ctx.fillText("🍺", 200, 220);
-        ctx.font = "20px Inter";
-        ctx.fillText("SIMULAÇÃO ANDROID 16", 200, 350);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-        setNewItemPhoto(dataUrl);
-      }
-      setIsProcessingPhoto(false);
-    }, 800);
-  };
-
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      setDebugLog('Nenhum arquivo selecionado.');
+      return;
+    }
 
-    setDebugLog('Lendo arquivo...');
+    setDebugLog('Lendo imagem...');
     setIsProcessingPhoto(true);
 
     const reader = new FileReader();
     reader.onload = (event) => {
       const result = event.target?.result as string;
       if (!result) {
-        setDebugLog('Erro: Falha ao ler arquivo.');
+        setDebugLog('Erro na leitura do arquivo.');
         setIsProcessingPhoto(false);
         return;
       }
 
       const img = new Image();
-      // IMPORTANTE: NÃO usar crossOrigin para blobs locais/arquivos de câmera
       img.onload = () => {
-        setDebugLog('Processando imagem...');
+        setDebugLog('Otimizando...');
         try {
           const canvas = document.createElement('canvas');
-          const MAX_DIM = 400; 
+          const MAX_DIM = 600; // Aumentado um pouco para melhor qualidade
           let width = img.width;
           let height = img.height;
 
@@ -157,30 +133,30 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
             ctx.fillStyle = "#ffffff";
             ctx.fillRect(0, 0, width, height);
             ctx.drawImage(img, 0, 0, width, height);
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.6); 
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.7); 
             
-            if (dataUrl && dataUrl.length > 100) {
+            if (dataUrl && dataUrl.length > 500) {
               setNewItemPhoto(dataUrl);
-              setDebugLog('Foto pronta!');
+              setDebugLog('');
             } else {
-              setDebugLog('Erro: Canvas vazio.');
+              setDebugLog('Erro: Imagem corrompida.');
             }
           }
         } catch (err) {
-          setDebugLog('Erro: Falha no canvas.');
+          setDebugLog('Erro no processamento.');
         } finally {
           setIsProcessingPhoto(false);
           if (fileInputRef.current) fileInputRef.current.value = ""; 
         }
       };
       img.onerror = () => {
-        setDebugLog('Erro: Falha ao carregar imagem.');
+        setDebugLog('Erro ao carregar imagem.');
         setIsProcessingPhoto(false);
       };
       img.src = result;
     };
     reader.onerror = () => {
-      setDebugLog('Erro: Falha no FileReader.');
+      setDebugLog('Erro no carregador.');
       setIsProcessingPhoto(false);
     };
     reader.readAsDataURL(file);
@@ -426,25 +402,17 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
                 </div>
                 <div className="flex-1 space-y-2">
                   <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed font-medium">
-                    {isProcessingPhoto ? (debugLog || 'Processando...') : newItemPhoto ? 'Foto capturada!' : 'Toque no quadrado para capturar foto.'}
+                    {isProcessingPhoto ? (debugLog || 'Processando...') : newItemPhoto ? 'Foto capturada!' : 'Toque no quadrado acima para abrir a câmera.'}
                   </p>
                   
                   <div className="flex gap-3">
-                    {newItemPhoto && !isProcessingPhoto ? (
+                    {newItemPhoto && !isProcessingPhoto && (
                       <button 
                         type="button" 
                         onClick={() => setNewItemPhoto(undefined)}
-                        className="text-[10px] font-bold text-red-500 uppercase active:opacity-50"
+                        className="flex items-center gap-1 text-[10px] font-bold text-red-500 uppercase active:opacity-50"
                       >
-                        Remover Foto
-                      </button>
-                    ) : (
-                      <button 
-                        type="button" 
-                        onClick={simulateCameraCapture}
-                        className="flex items-center gap-1 text-[10px] font-bold text-blue-500 dark:text-blue-400 uppercase active:opacity-50"
-                      >
-                        <Play size={10} /> Teste Rápido
+                        <RefreshCw size={10} /> Tirar outra
                       </button>
                     )}
                   </div>
@@ -463,7 +431,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
         </div>
       )}
 
-      {/* Modals for Finish and Budget Limit stay same as previous versions */}
+      {/* Restante dos modais mantidos */}
       {isFinishing && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-end animate-in fade-in duration-200">
            <div className="bg-white dark:bg-dark-card w-full rounded-t-[2.5rem] p-8 pb-12 space-y-6 animate-in slide-in-from-bottom-full duration-300">
