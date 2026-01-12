@@ -1,0 +1,6 @@
+{
+  "appId": "com.quantodeu.app",
+  "appName": "Quanto Deu?",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}

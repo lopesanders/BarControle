@@ -1,7 +1,6 @@
-
-import React, { useState } from 'react';
-import { Trash2, ChevronRight, X, Calendar, Users, Percent } from 'lucide-react';
-import { ConsumptionSession } from '../types';
+import React, { useState } from 'https://esm.sh/react@19.0.0';
+import { Trash2, ChevronRight, X, Calendar, Users, Percent } from 'https://esm.sh/lucide-react@0.460.0';
+import { ConsumptionSession } from '../types.ts';
 
 interface HistoryViewProps {
   history: ConsumptionSession[];
@@ -60,7 +59,6 @@ const HistoryView: React.FC<HistoryViewProps> = ({ history, onClear }) => {
         </div>
       )}
 
-      {/* Session Details Modal */}
       {selectedSession && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
           <div className="bg-white dark:bg-dark-card w-full max-w-md rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col max-h-[85vh]">

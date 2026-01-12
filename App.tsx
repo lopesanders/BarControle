@@ -1,12 +1,11 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'https://esm.sh/react@19.0.0';
 import { 
   Beer, 
   History, 
   HelpCircle, 
   Sun, 
   Moon
-} from 'lucide-react';
+} from 'https://esm.sh/lucide-react@0.460.0';
 import { ConsumptionItem, ConsumptionSession, View } from './types.ts';
 import ConsumptionView from './components/ConsumptionView.tsx';
 import HistoryView from './components/HistoryView.tsx';
@@ -23,7 +22,6 @@ const App: React.FC = () => {
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
 
-  // Persistence com tratamento de erro de cota (Android Quota Check)
   useEffect(() => {
     try {
       const savedItems = localStorage.getItem('bar_active_items');
@@ -79,7 +77,6 @@ const App: React.FC = () => {
 
   return (
     <div className={`flex flex-col h-[100dvh] max-w-md mx-auto overflow-hidden relative theme-transition ${isDarkMode ? 'bg-dark-bg text-gray-100' : 'bg-gray-50 text-gray-800'}`}>
-      {/* Header */}
       <header className="bg-white dark:bg-dark-card border-b border-gray-100 dark:border-dark-border px-6 py-4 flex justify-between items-center shrink-0 z-10">
         <h1 className="text-xl font-black flex items-center gap-2">
           <Beer className="text-blue-600 dark:text-blue-400" />
@@ -89,7 +86,6 @@ const App: React.FC = () => {
           <button 
             onClick={() => setIsDarkMode(!isDarkMode)}
             className="p-3 rounded-full text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-border transition-colors active:scale-90"
-            aria-label="Alternar tema"
           >
             {isDarkMode ? <Sun size={20} className="text-yellow-400" /> : <Moon size={20} />}
           </button>
@@ -102,7 +98,6 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto pb-32">
         {currentView === 'active' && (
           <ConsumptionView 
@@ -124,7 +119,6 @@ const App: React.FC = () => {
         )}
       </main>
 
-      {/* Navigation Bar */}
       <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/95 dark:bg-dark-card/95 backdrop-blur-md border-t border-gray-100 dark:border-dark-border flex justify-around items-center py-3 safe-bottom z-40">
         <button 
           onClick={() => setCurrentView('active')}
