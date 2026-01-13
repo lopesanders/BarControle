@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'https://esm.sh/react@19.0.0';
-import { Camera as CameraIcon, Plus, Trash2, CheckCircle2, Settings, X, Copy, RotateCcw } from 'https://esm.sh/lucide-react@0.460.0';
+import { Camera as CameraIcon, Plus, Trash2, CheckCircle2, Settings, X, Copy, RotateCcw, MapPin } from 'https://esm.sh/lucide-react@0.460.0';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { Haptics } from '@capacitor/haptics';
 import { ConsumptionItem, ConsumptionSession } from '../types.ts';
@@ -10,6 +10,8 @@ interface ConsumptionViewProps {
   setItems: React.Dispatch<React.SetStateAction<ConsumptionItem[]>>;
   budgetLimit: number;
   setBudgetLimit: (val: number) => void;
+  currentLocation: string;
+  setCurrentLocation: (val: string) => void;
   onFinish: (session: ConsumptionSession) => void;
 }
 
@@ -18,6 +20,8 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
   setItems, 
   budgetLimit, 
   setBudgetLimit,
+  currentLocation,
+  setCurrentLocation,
   onFinish 
 }) => {
   const [isAdding, setIsAdding] = useState(false);
@@ -91,7 +95,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
     try {
       const image = await Camera.getPhoto({
         quality: 50,
-        allowEditing: false, // Alterado para false para evitar o prompt de edição/corte
+        allowEditing: false,
         resultType: CameraResultType.Base64,
         source: CameraSource.Camera,
         saveToGallery: false
@@ -112,7 +116,6 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
     const price = parseFloat(newItemPrice.replace(',', '.'));
     if (isNaN(price)) return;
 
-    // Trigger vibration if threshold reached (90%) using Haptics plugin
     const diff = editingItem ? (price - editingItem.price) : price;
     const futureTotal = total + diff;
     if (futureTotal >= budgetLimit * 0.9) {
@@ -191,7 +194,10 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
       }`}>
         <div className="flex justify-between items-start mb-4">
           <div className="flex flex-col">
-            <p className="text-[10px] font-black uppercase tracking-widest opacity-60 text-gray-500 dark:text-gray-400">Gasto Consolidado</p>
+            <div className="flex items-center gap-1 opacity-60">
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">Gasto Consolidado</p>
+              {currentLocation && <span className="text-[10px] font-black text-blue-500 uppercase flex items-center gap-0.5">• <MapPin size={10} /> {currentLocation}</span>}
+            </div>
             <h2 className="text-4xl font-black tracking-tighter text-gray-900 dark:text-white leading-none">
               {formatCurrency(total)}
             </h2>
@@ -329,18 +335,42 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
       {isConfiguringBudget && (
         <div className="fixed inset-0 bg-black/80 z-[100] flex items-end animate-in fade-in duration-300">
           <div className="bg-white dark:bg-dark-card w-full rounded-t-[3rem] p-8 pb-12 space-y-6 animate-in slide-in-from-bottom-full duration-500">
-            <div className="flex justify-between items-center"><h3 className="text-xl font-black dark:text-white uppercase tracking-tight">Quanto vai gastar?</h3><button onClick={() => setIsConfiguringBudget(false)} className="text-gray-400 p-2"><X /></button></div>
-            <div className="relative">
-               <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-gray-400">R$</span>
-               <input 
-                 type="number" 
-                 value={budgetLimit === 0 ? '' : budgetLimit} 
-                 placeholder="Digite o limite"
-                 onChange={e => setBudgetLimit(Number(e.target.value))} 
-                 className="w-full pl-16 pr-6 py-6 bg-gray-100 dark:bg-dark-bg rounded-2xl text-2xl font-black dark:text-white outline-none focus:ring-2 focus:ring-blue-500" 
-               />
+            <div className="flex justify-between items-center">
+              <h3 className="text-xl font-black dark:text-white uppercase tracking-tight">Onde e quanto pretende gastar?</h3>
+              <button onClick={() => setIsConfiguringBudget(false)} className="text-gray-400 p-2"><X /></button>
             </div>
-            <button onClick={() => setIsConfiguringBudget(false)} className="w-full h-16 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all">Definir Orçamento</button>
+            
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-2">Local</label>
+                <div className="relative">
+                  <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-gray-400"><MapPin size={20} /></span>
+                  <input 
+                    type="text" 
+                    value={currentLocation} 
+                    placeholder="Ex: Praia, Balada, Churras"
+                    onChange={e => setCurrentLocation(e.target.value)} 
+                    className="w-full pl-16 pr-6 py-6 bg-gray-100 dark:bg-dark-bg rounded-2xl text-xl font-bold dark:text-white outline-none focus:ring-2 focus:ring-blue-500" 
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-2">Limite Orçamentário</label>
+                <div className="relative">
+                  <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-gray-400">R$</span>
+                  <input 
+                    type="number" 
+                    value={budgetLimit === 0 ? '' : budgetLimit} 
+                    placeholder="Digite o limite"
+                    onChange={e => setBudgetLimit(Number(e.target.value))} 
+                    className="w-full pl-16 pr-6 py-6 bg-gray-100 dark:bg-dark-bg rounded-2xl text-2xl font-black dark:text-white outline-none focus:ring-2 focus:ring-blue-500" 
+                  />
+                </div>
+              </div>
+            </div>
+
+            <button onClick={() => setIsConfiguringBudget(false)} className="w-full h-16 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all">Definir Configurações</button>
           </div>
         </div>
       )}
@@ -384,7 +414,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
                  <span className="text-2xl font-black">{formatCurrency((includeTip ? total * 1.1 : total) / splitCount)}</span>
                </div>
              )}
-             <button onClick={() => { onFinish({ id: Date.now().toString(), items, date: Date.now(), total, splitCount, hasTip: includeTip, tipAmount: total*0.1, totalPerPerson: (includeTip?total*1.1:total)/splitCount }); setIsFinishing(false); }} className="w-full h-18 bg-green-600 text-white rounded-[1.5rem] font-black uppercase tracking-widest active:scale-95 transition-all shadow-xl shadow-green-500/20 py-5">Confirmar Pagamento</button>
+             <button onClick={() => { onFinish({ id: Date.now().toString(), items, date: Date.now(), total, splitCount, hasTip: includeTip, tipAmount: total*0.1, totalPerPerson: (includeTip?total*1.1:total)/splitCount, location: currentLocation }); setIsFinishing(false); }} className="w-full h-18 bg-green-600 text-white rounded-[1.5rem] font-black uppercase tracking-widest active:scale-95 transition-all shadow-xl shadow-green-500/20 py-5">Confirmar Pagamento</button>
           </div>
         </div>
       )}

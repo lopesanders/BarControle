@@ -1,4 +1,3 @@
-
 export interface ConsumptionItem {
   id: string;
   name: string;
@@ -16,6 +15,7 @@ export interface ConsumptionSession {
   hasTip: boolean;
   tipAmount: number;
   totalPerPerson: number;
+  location?: string;
 }
 
 export type View = 'active' | 'history' | 'help';

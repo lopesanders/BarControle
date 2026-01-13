@@ -1,5 +1,5 @@
 import React, { useState } from 'https://esm.sh/react@19.0.0';
-import { Trash2, ChevronRight, X, Calendar, Users, Percent } from 'https://esm.sh/lucide-react@0.460.0';
+import { Trash2, ChevronRight, X, Calendar, Users, Percent, MapPin } from 'https://esm.sh/lucide-react@0.460.0';
 import { ConsumptionSession } from '../types.ts';
 
 interface HistoryViewProps {
@@ -42,9 +42,14 @@ const HistoryView: React.FC<HistoryViewProps> = ({ history, onClear }) => {
               className="w-full text-left bg-white dark:bg-dark-card p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-dark-border flex items-center justify-between group active:scale-[0.98] transition-all"
             >
               <div>
-                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">
-                  {new Date(session.date).toLocaleDateString('pt-BR')} • {new Date(session.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                </p>
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+                    {new Date(session.date).toLocaleDateString('pt-BR')} • {new Date(session.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                  {session.location && (
+                    <span className="text-[10px] font-black text-blue-500 uppercase flex items-center gap-0.5">• <MapPin size={10} /> {session.location}</span>
+                  )}
+                </div>
                 <h4 className="text-xl font-extrabold text-gray-800 dark:text-white">
                   {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(session.total + session.tipAmount)}
                 </h4>
@@ -65,7 +70,14 @@ const HistoryView: React.FC<HistoryViewProps> = ({ history, onClear }) => {
             <div className="p-6 bg-blue-600 dark:bg-blue-700 text-white flex justify-between items-center">
               <div>
                 <h3 className="text-lg font-bold">Detalhes do Consumo</h3>
-                <p className="text-xs opacity-80">{new Date(selectedSession.date).toLocaleString('pt-BR')}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs opacity-80">{new Date(selectedSession.date).toLocaleString('pt-BR')}</p>
+                  {selectedSession.location && (
+                    <span className="text-[10px] font-black bg-white/20 px-2 py-0.5 rounded-full flex items-center gap-1 uppercase tracking-tighter">
+                      <MapPin size={10} /> {selectedSession.location}
+                    </span>
+                  )}
+                </div>
               </div>
               <button onClick={() => setSelectedSession(null)} className="p-2 hover:bg-white/20 rounded-xl transition-colors">
                 <X />

@@ -16,6 +16,7 @@ const App: React.FC = () => {
   const [activeItems, setActiveItems] = useState<ConsumptionItem[]>([]);
   const [history, setHistory] = useState<ConsumptionSession[]>([]);
   const [budgetLimit, setBudgetLimit] = useState<number>(300);
+  const [currentLocation, setCurrentLocation] = useState<string>('');
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem('bar_theme');
     if (saved) return saved === 'dark';
@@ -27,10 +28,12 @@ const App: React.FC = () => {
       const savedItems = localStorage.getItem('bar_active_items');
       const savedHistory = localStorage.getItem('bar_history');
       const savedBudget = localStorage.getItem('bar_budget_limit');
+      const savedLocation = localStorage.getItem('bar_current_location');
 
       if (savedItems) setActiveItems(JSON.parse(savedItems));
       if (savedHistory) setHistory(JSON.parse(savedHistory));
       if (savedBudget) setBudgetLimit(Number(savedBudget));
+      if (savedLocation) setCurrentLocation(savedLocation);
     } catch (e) {
       console.warn("Erro ao carregar dados do localStorage", e);
     }
@@ -64,18 +67,25 @@ const App: React.FC = () => {
   }, [budgetLimit]);
 
   useEffect(() => {
+    localStorage.setItem('bar_current_location', currentLocation);
+  }, [currentLocation]);
+
+  useEffect(() => {
     localStorage.setItem('bar_theme', isDarkMode ? 'dark' : 'light');
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
     } else {
-      document.documentElement.classList.remove('dark');
+      document.documentElement.classList.remove('remove');
     }
   }, [isDarkMode]);
 
   const handleFinishSession = (session: ConsumptionSession) => {
     try {
-      setHistory(prev => [session, ...prev]);
+      // Garantir que o local atual seja incluído na sessão
+      const finalSession = { ...session, location: currentLocation };
+      setHistory(prev => [finalSession, ...prev]);
       setActiveItems([]);
+      setCurrentLocation(''); // Limpa local após fechar a conta
       setCurrentView('history');
     } catch (err) {
       console.error("Erro ao finalizar sessão:", err);
@@ -123,6 +133,8 @@ const App: React.FC = () => {
             setItems={setActiveItems} 
             budgetLimit={budgetLimit}
             setBudgetLimit={setBudgetLimit}
+            currentLocation={currentLocation}
+            setCurrentLocation={setCurrentLocation}
             onFinish={handleFinishSession}
           />
         )}
@@ -135,7 +147,6 @@ const App: React.FC = () => {
         {currentView === 'help' && (
           <HelpView onClose={() => setCurrentView('active')} />
         )}
-        {/* Espaçador para não cobrir o conteúdo pelo nav fixo */}
         <div style={{ height: 'calc(env(safe-area-inset-bottom) + 80px)' }} />
       </main>
 
