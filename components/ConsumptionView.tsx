@@ -42,6 +42,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
   const [currentSwipeOffset, setCurrentSwipeOffset] = useState<number>(0);
 
   const total = items.reduce((acc, item) => acc + item.price, 0);
+  const percent = budgetLimit > 0 ? (total / budgetLimit) : 0;
 
   useEffect(() => {
     if (editingItem) {
@@ -52,10 +53,11 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
     }
   }, [editingItem]);
 
-  const triggerHaptic = async (type: 'impact' | 'notification' | 'selection' = 'selection') => {
+  const triggerHaptic = async (type: 'impact' | 'notification' | 'selection' | 'alert' = 'selection') => {
     try {
       if (type === 'impact') await Haptics.impact({ style: ImpactStyle.Medium });
       else if (type === 'notification') await Haptics.notification({ type: NotificationType.Success });
+      else if (type === 'alert') await Haptics.vibrate({ duration: 2000 });
       else await Haptics.selectionChanged();
     } catch (e) { /* Haptics not available */ }
   };
@@ -99,7 +101,15 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
     const price = parseFloat(newItemPrice.replace(',', '.'));
     if (isNaN(price)) return;
 
-    await triggerHaptic('notification');
+    const newTotal = total + price;
+    const isNowAlert = budgetLimit > 0 && newTotal >= budgetLimit * 0.9;
+    const wasAlertBefore = budgetLimit > 0 && total < budgetLimit * 0.9;
+
+    if (isNowAlert && wasAlertBefore) {
+      await triggerHaptic('alert');
+    } else {
+      await triggerHaptic('notification');
+    }
 
     if (editingItem) {
       setItems(prev => prev.map(item => item.id === editingItem.id ? { ...item, name: newItemName, price, photo: newItemPhoto } : item));
@@ -159,29 +169,56 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
     setTouchStartX(null);
   };
 
+  const getDashboardStyle = () => {
+    if (budgetLimit === 0) return 'bg-white dark:bg-dark-card border-slate-100 dark:border-dark-border text-slate-800 dark:text-white';
+    if (percent < 0.5) return 'bg-emerald-600 text-white border-emerald-500 shadow-emerald-500/10';
+    if (percent < 0.9) return 'bg-amber-400 text-slate-900 border-amber-300 shadow-amber-500/10';
+    return 'bg-rose-600 text-white border-rose-500 shadow-rose-500/10';
+  };
+
+  const getMetaTextColor = () => {
+    if (budgetLimit === 0) return 'text-slate-400';
+    if (percent < 0.5) return 'text-white/70';
+    if (percent < 0.9) return 'text-slate-700/80';
+    return 'text-white/70';
+  };
+
+  const getTagStyle = () => {
+    if (budgetLimit === 0) return 'bg-blue-50 dark:bg-blue-900/30 text-blue-500';
+    if (percent < 0.5) return 'bg-white/20 text-white';
+    if (percent < 0.9) return 'bg-black/10 text-slate-900';
+    return 'bg-white/20 text-white';
+  };
+
+  const handlePedirClick = () => {
+    triggerHaptic();
+    if (budgetLimit === 0) {
+      setIsConfiguringBudget(true);
+    } else {
+      setIsAdding(true);
+    }
+  };
+
   return (
     <div className="p-5 space-y-8 animate-slide-up">
       {/* Dashboard Widget */}
-      <div className={`p-7 rounded-[2.5rem] shadow-2xl transition-all duration-700 ${
-        budgetLimit > 0 && (total / budgetLimit) >= 1.0 ? 'bg-rose-500 text-white' :
-        'bg-white dark:bg-dark-card border border-slate-100 dark:border-dark-border'
-      }`}>
+      <div className={`p-7 rounded-[2.5rem] shadow-2xl transition-all duration-700 border ${getDashboardStyle()}`}>
         <div className="flex justify-between items-start mb-6">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className={`text-[10px] font-black uppercase tracking-widest ${budgetLimit > 0 && (total / budgetLimit) >= 1.0 ? 'text-white/70' : 'text-slate-400'}`}>Gasto Atual</span>
-              {currentLocation && <span className={`text-[10px] font-black uppercase flex items-center gap-1 ${budgetLimit > 0 && (total / budgetLimit) >= 1.0 ? 'bg-white/20' : 'bg-blue-50 dark:bg-blue-900/30 text-blue-500'} px-2 py-0.5 rounded-full`}><MapPin size={10} /> {currentLocation}</span>}
+              <span className={`text-[10px] font-black uppercase tracking-widest opacity-60`}>Gasto Atual</span>
+              {currentLocation && <span className={`text-[10px] font-black uppercase flex items-center gap-1 ${getTagStyle()} px-2 py-0.5 rounded-full`}><MapPin size={10} /> {currentLocation}</span>}
             </div>
             <h2 className="text-4xl font-black tracking-tighter leading-none">
               {formatCurrency(total)}
             </h2>
-            <p className={`text-xs font-bold mt-1 ${budgetLimit > 0 && (total / budgetLimit) >= 1.0 ? 'text-white/60' : 'text-slate-400'}`}>
+            <p className={`text-xs font-bold mt-1 ${getMetaTextColor()}`}>
               de {budgetLimit > 0 ? formatCurrency(budgetLimit) : 'Sem limite'}
             </p>
           </div>
           <button 
             onClick={() => { triggerHaptic(); setIsConfiguringBudget(true); }} 
-            className={`p-3 rounded-2xl transition-all active:scale-90 ${budgetLimit > 0 && (total / budgetLimit) >= 1.0 ? 'bg-white/20 text-white' : 'bg-slate-50 dark:bg-dark-border/50 text-slate-500 dark:text-slate-300'}`}
+            className={`p-3 rounded-2xl transition-all active:scale-90 ${budgetLimit === 0 ? 'bg-slate-50 dark:bg-dark-border/50 text-slate-500 dark:text-slate-300' : 'bg-black/10'}`}
           >
             <Settings size={20} />
           </button>
@@ -289,7 +326,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
               <div className="space-y-5">
                 <div className="space-y-1">
                   <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Descrição</label>
-                  <input type="text" value={newItemName} onChange={e => setNewItemName(e.target.value)} placeholder="Ex: Moscow Mule, Picanha..." className="w-full px-6 py-5 bg-slate-100 dark:bg-dark-bg rounded-2xl text-lg font-bold dark:text-white outline-none focus:ring-4 focus:ring-blue-500/20 border border-transparent transition-all" required />
+                  <input type="text" value={newItemName} onChange={e => setNewItemName(e.target.value)} placeholder="Ex: Cerveja, Porção, Carvão..." className="w-full px-6 py-5 bg-slate-100 dark:bg-dark-bg rounded-2xl text-lg font-bold dark:text-white outline-none focus:ring-4 focus:ring-blue-500/20 border border-transparent transition-all" required />
                 </div>
                 <div className="space-y-1">
                    <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Preço Unitário</label>
@@ -319,15 +356,15 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
       {/* Bottom Floating Actions */}
       <div className="fixed bottom-28 left-0 right-0 max-w-md mx-auto px-6 flex gap-4 z-30 pointer-events-none">
         <button 
-          onClick={() => { triggerHaptic(); setIsAdding(true); }} 
-          className="flex-[1.5] h-18 bg-blue-600 text-white rounded-[1.6rem] shadow-2xl shadow-blue-600/30 font-black active:scale-95 pointer-events-auto flex items-center justify-center gap-3 transition-all uppercase tracking-[0.15em] text-sm"
+          onClick={handlePedirClick} 
+          className="flex-[1.5] h-20 bg-blue-600 text-white rounded-[1.8rem] shadow-2xl shadow-blue-600/30 font-black active:scale-95 pointer-events-auto flex items-center justify-center gap-3 transition-all uppercase tracking-[0.15em] text-sm"
         >
           <Plus size={24}/> Pedir
         </button>
         {items.length > 0 && (
           <button 
             onClick={() => { triggerHaptic(); setIsFinishing(true); }} 
-            className="flex-1 h-18 bg-emerald-600 text-white rounded-[1.6rem] shadow-2xl shadow-emerald-600/30 font-black active:scale-95 pointer-events-auto flex items-center justify-center gap-3 transition-all uppercase tracking-[0.15em] text-sm"
+            className="flex-1 h-20 bg-emerald-600 text-white rounded-[1.8rem] shadow-2xl shadow-emerald-600/30 font-black active:scale-95 pointer-events-auto flex items-center justify-center gap-3 transition-all uppercase tracking-[0.15em] text-sm"
           >
             <CheckCircle2 size={24}/> Pagar
           </button>
@@ -361,7 +398,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
               </div>
             </div>
 
-            <button onClick={() => { triggerHaptic(); setIsConfiguringBudget(false); }} className="w-full h-18 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all">Salvar Meta</button>
+            <button onClick={() => { triggerHaptic(); setIsConfiguringBudget(false); }} className="w-full h-20 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all">Salvar Meta</button>
           </div>
         </div>
       )}
@@ -409,7 +446,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
                  <div className="bg-emerald-50 dark:bg-emerald-900/10 p-6 rounded-[1.8rem] flex justify-between items-center text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/20 animate-scale-in">
                    <div className="flex flex-col">
                     <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Por pessoa</span>
-                    <span className="text-2xl font-black leading-none mt-1">{formatCurrency((includeTip ? total * 1.1 : total) / splitCount)}</span>
+                    <span className="text-2xl font-black mt-1 leading-none">{formatCurrency((includeTip ? total * 1.1 : total) / splitCount)}</span>
                    </div>
                    <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl">
                     <Plus size={24} className="opacity-40" />

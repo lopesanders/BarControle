@@ -76,7 +76,7 @@ const HistoryView: React.FC<HistoryViewProps> = ({ history, onClear }) => {
           <div className="bg-white dark:bg-dark-card w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl animate-scale-in flex flex-col max-h-[85vh]">
             <div className="p-7 bg-blue-600 text-white flex justify-between items-start">
               <div>
-                <h3 className="text-xl font-black uppercase tracking-tighter">Resumo da Noite</h3>
+                <h3 className="text-xl font-black uppercase tracking-tighter">Detalhes do Consumo</h3>
                 <div className="flex items-center gap-2 mt-1">
                   <p className="text-[10px] font-bold opacity-70 tracking-wider uppercase">{new Date(selectedSession.date).toLocaleString('pt-BR')}</p>
                 </div>

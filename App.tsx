@@ -81,15 +81,16 @@ const App: React.FC = () => {
 
   const handleFinishSession = (session: ConsumptionSession) => {
     try {
-      // Garantir que o local atual seja incluído na sessão
       const finalSession = { ...session, location: currentLocation };
       setHistory(prev => [finalSession, ...prev]);
       setActiveItems([]);
-      setCurrentLocation(''); // Limpa local após fechar a conta
+      setCurrentLocation(''); 
+      setBudgetLimit(0); // Volta para status inicial "sem limite"
       setCurrentView('history');
     } catch (err) {
       console.error("Erro ao finalizar sessão:", err);
       setActiveItems([]);
+      setBudgetLimit(0);
       setCurrentView('history');
     }
   };
