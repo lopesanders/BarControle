@@ -1,5 +1,5 @@
 import React, { useState } from 'https://esm.sh/react@19.0.0';
-import { Trash2, ChevronRight, X, Calendar, Users, Percent, MapPin, Receipt } from 'https://esm.sh/lucide-react@0.460.0';
+import { Trash2, ChevronRight, X, Calendar, Users, Percent, MapPin, Receipt, Share2 } from 'https://esm.sh/lucide-react@0.460.0';
 import { ConsumptionSession } from '../types.ts';
 
 interface HistoryViewProps {
@@ -12,6 +12,45 @@ const HistoryView: React.FC<HistoryViewProps> = ({ history, onClear }) => {
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+  };
+
+  const handleShare = async (session: ConsumptionSession) => {
+    const dateStr = new Date(session.date).toLocaleString('pt-BR');
+    const itemsStr = session.items.map(i => `- ${i.name}: ${formatCurrency(i.price)}`).join('\n');
+    const totalWithTip = session.total + session.tipAmount;
+    
+    let shareText = `🧾 *RESUMO DA COMANDA*\n`;
+    if (session.location) shareText += `📍 *Local:* ${session.location}\n`;
+    shareText += `📅 *Data:* ${dateStr}\n\n`;
+    shareText += `🛍️ *ITENS:*\n${itemsStr}\n\n`;
+    shareText += `💰 *Subtotal:* ${formatCurrency(session.total)}\n`;
+    if (session.hasTip) shareText += `✨ *Taxa (10%):* ${formatCurrency(session.tipAmount)}\n`;
+    shareText += `💵 *TOTAL:* ${formatCurrency(totalWithTip)}\n`;
+    
+    if (session.splitCount > 1) {
+      shareText += `\n👥 *DIVISÃO:* ${session.splitCount} pessoas\n`;
+      shareText += `💳 *CADA UM:* ${formatCurrency(session.totalPerPerson)}\n`;
+    }
+    
+    shareText += `\n_Enviado via App Quanto Deu?_`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Comanda - ${session.location || 'Quanto Deu?'}`,
+          text: shareText,
+        });
+      } catch (err) {
+        console.error('Erro ao compartilhar:', err);
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(shareText);
+        alert('Resumo copiado para a área de transferência!');
+      } catch (err) {
+        console.error('Erro ao copiar:', err);
+      }
+    }
   };
 
   return (
@@ -143,10 +182,16 @@ const HistoryView: React.FC<HistoryViewProps> = ({ history, onClear }) => {
               )}
             </div>
 
-            <div className="p-7 bg-white dark:bg-dark-card border-t border-slate-50 dark:border-dark-border">
+            <div className="p-7 bg-white dark:bg-dark-card border-t border-slate-50 dark:border-dark-border grid grid-cols-2 gap-4">
+              <button 
+                onClick={() => handleShare(selectedSession)}
+                className="py-5 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] active:scale-95 transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20"
+              >
+                <Share2 size={16} /> Compartilhar
+              </button>
               <button 
                 onClick={() => setSelectedSession(null)}
-                className="w-full py-5 bg-slate-100 dark:bg-dark-border/50 text-slate-700 dark:text-white rounded-2xl font-black uppercase tracking-widest text-xs active:scale-95 transition-all"
+                className="py-5 bg-slate-100 dark:bg-dark-border/50 text-slate-700 dark:text-white rounded-2xl font-black uppercase tracking-widest text-[10px] active:scale-95 transition-all"
               >
                 Voltar
               </button>
