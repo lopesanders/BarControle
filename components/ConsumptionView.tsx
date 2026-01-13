@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'https://esm.sh/react@19.0.0';
-import { Camera as CameraIcon, Plus, Trash2, CheckCircle2, Settings, X, Copy, RotateCcw, MapPin, ReceiptText } from 'https://esm.sh/lucide-react@0.460.0';
+import { Camera as CameraIcon, Plus, Trash2, CheckCircle2, Settings, X, Copy, RotateCcw, MapPin, ReceiptText, Banknote } from 'https://esm.sh/lucide-react@0.460.0';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 import { ConsumptionItem, ConsumptionSession } from '../types.ts';
@@ -392,8 +392,8 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
               <div className="space-y-1">
                 <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Meta de Gasto (Limite)</label>
                 <div className="relative">
-                  <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-slate-400">R$</span>
-                  <input type="number" value={budgetLimit === 0 ? '' : budgetLimit} placeholder="Ex: 300" onChange={e => setBudgetLimit(Number(e.target.value))} className="w-full pl-16 pr-6 py-6 bg-slate-100 dark:bg-dark-bg rounded-2xl text-2xl font-black dark:text-white outline-none focus:ring-4 focus:ring-blue-500/10" />
+                  <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-slate-400"><Banknote size={20} /></span>
+                  <input type="number" value={budgetLimit === 0 ? '' : budgetLimit} placeholder="Ex: 100, 200, 500..." onChange={e => setBudgetLimit(Number(e.target.value))} className="w-full pl-16 pr-6 py-6 bg-slate-100 dark:bg-dark-bg rounded-2xl text-xl font-bold dark:text-white outline-none focus:ring-4 focus:ring-blue-500/10" />
                 </div>
               </div>
             </div>
