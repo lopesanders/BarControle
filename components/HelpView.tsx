@@ -85,7 +85,7 @@ const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
           <div className="pt-4 border-t border-gray-200 dark:border-dark-border flex flex-col items-center gap-1">
             <div className="flex items-center gap-2 text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">
               <Info size={14} />
-              Versão 1.6.3
+              Versão 1.6.6
             </div>
             <div className="text-[10px] font-bold text-gray-400 dark:text-gray-600 uppercase tracking-tighter">
               Desenvolvido por <a href="https://www.instagram.com/andersonlopesdsgn/" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-500 hover:underline">Anderson M Lopes</a>
