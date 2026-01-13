@@ -102,12 +102,14 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
     if (isNaN(price)) return;
 
     const newTotal = total + price;
+    // Verifica se o novo total ultrapassa 90% do limite configurado
     const isNowAlert = budgetLimit > 0 && newTotal >= budgetLimit * 0.9;
-    const wasAlertBefore = budgetLimit > 0 && total < budgetLimit * 0.9;
 
-    if (isNowAlert && wasAlertBefore) {
+    if (isNowAlert) {
+      // Vibra por 2 segundos se estiver acima de 90%
       await triggerHaptic('alert');
     } else {
+      // Vibração normal de confirmação
       await triggerHaptic('notification');
     }
 
@@ -229,15 +231,17 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
       <div className="space-y-4 pb-32">
         <div className="flex justify-between items-center px-1">
           <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Pedidos da Rodada</h3>
-          <span className="text-[10px] font-bold text-slate-300 dark:text-slate-600 italic">Deslize para apagar</span>
+          <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-dark-border/50 px-3 py-1.5 rounded-full animate-pulse-soft">
+            Deslize para apagar
+          </span>
         </div>
 
         {items.length === 0 ? (
-          <div className="flex flex-col items-center py-16 text-slate-300 dark:text-slate-700">
-             <div className="w-20 h-20 bg-slate-100 dark:bg-dark-card rounded-[2.5rem] flex items-center justify-center mb-5">
-                <ReceiptText className="opacity-20" size={32} />
+          <div className="flex flex-col items-center py-16 text-slate-400 dark:text-slate-500">
+             <div className="w-20 h-20 bg-slate-200/50 dark:bg-dark-border rounded-[2.5rem] flex items-center justify-center mb-5">
+                <ReceiptText className="opacity-40" size={32} />
              </div>
-            <p className="text-sm font-bold opacity-40">Nenhum pedido ainda</p>
+            <p className="text-sm font-black uppercase tracking-widest opacity-60">Nenhum pedido ainda</p>
           </div>
         ) : (
           <div className="space-y-3">
