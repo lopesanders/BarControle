@@ -15,7 +15,7 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('active');
   const [activeItems, setActiveItems] = useState<ConsumptionItem[]>([]);
   const [history, setHistory] = useState<ConsumptionSession[]>([]);
-  const [budgetLimit, setBudgetLimit] = useState<number>(300);
+  const [budgetLimit, setBudgetLimit] = useState<number>(0);
   const [currentLocation, setCurrentLocation] = useState<string>('');
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem('bar_theme');
@@ -75,7 +75,7 @@ const App: React.FC = () => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
     } else {
-      document.documentElement.classList.remove('remove');
+      document.documentElement.classList.remove('dark');
     }
   }, [isDarkMode]);
 

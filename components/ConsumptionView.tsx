@@ -118,7 +118,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
 
     const diff = editingItem ? (price - editingItem.price) : price;
     const futureTotal = total + diff;
-    if (futureTotal >= budgetLimit * 0.9) {
+    if (budgetLimit > 0 && futureTotal >= budgetLimit * 0.9) {
       try {
         await Haptics.vibrate({ duration: 2000 });
       } catch (err) {
@@ -187,9 +187,9 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
   return (
     <div className="p-4 space-y-6">
       <div className={`p-6 rounded-[2.5rem] shadow-xl border-2 transition-all duration-500 ${
-        (total / budgetLimit) >= 1.0 ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' :
-        (total / budgetLimit) >= 0.9 ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800' :
-        (total / budgetLimit) >= 0.5 ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800' :
+        budgetLimit > 0 && (total / budgetLimit) >= 1.0 ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' :
+        budgetLimit > 0 && (total / budgetLimit) >= 0.9 ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800' :
+        budgetLimit > 0 && (total / budgetLimit) >= 0.5 ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800' :
         'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
       }`}>
         <div className="flex justify-between items-start mb-4">
@@ -202,7 +202,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
               {formatCurrency(total)}
             </h2>
             <p className="text-xs font-bold text-gray-400 dark:text-gray-500 mt-1">
-              de {formatCurrency(budgetLimit)}
+              de {budgetLimit > 0 ? formatCurrency(budgetLimit) : 'Sem limite'}
             </p>
           </div>
           <button onClick={() => setIsConfiguringBudget(true)} className="p-3 bg-white/80 dark:bg-dark-border/50 rounded-2xl shadow-sm active:scale-90 transition-transform"><Settings size={20} className="text-gray-600 dark:text-gray-300" /></button>
@@ -362,7 +362,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
                   <input 
                     type="number" 
                     value={budgetLimit === 0 ? '' : budgetLimit} 
-                    placeholder="Digite o limite"
+                    placeholder="Ex: 300"
                     onChange={e => setBudgetLimit(Number(e.target.value))} 
                     className="w-full pl-16 pr-6 py-6 bg-gray-100 dark:bg-dark-bg rounded-2xl text-2xl font-black dark:text-white outline-none focus:ring-2 focus:ring-blue-500" 
                   />
