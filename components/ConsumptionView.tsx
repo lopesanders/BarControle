@@ -414,7 +414,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
                  <span className="text-2xl font-black">{formatCurrency((includeTip ? total * 1.1 : total) / splitCount)}</span>
                </div>
              )}
-             <button onClick={() => { onFinish({ id: Date.now().toString(), items, date: Date.now(), total, splitCount, hasTip: includeTip, tipAmount: total*0.1, totalPerPerson: (includeTip?total*1.1:total)/splitCount, location: currentLocation }); setIsFinishing(false); }} className="w-full h-18 bg-green-600 text-white rounded-[1.5rem] font-black uppercase tracking-widest active:scale-95 transition-all shadow-xl shadow-green-500/20 py-5">Confirmar Pagamento</button>
+             <button onClick={() => { onFinish({ id: Date.now().toString(), items, date: Date.now(), total, splitCount, hasTip: includeTip, tipAmount: includeTip ? total * 0.1 : 0, totalPerPerson: (includeTip ? total * 1.1 : total) / splitCount, location: currentLocation }); setIsFinishing(false); }} className="w-full h-18 bg-green-600 text-white rounded-[1.5rem] font-black uppercase tracking-widest active:scale-95 transition-all shadow-xl shadow-green-500/20 py-5">Confirmar Pagamento</button>
           </div>
         </div>
       )}
