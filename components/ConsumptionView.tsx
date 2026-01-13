@@ -91,7 +91,7 @@ const ConsumptionView: React.FC<ConsumptionViewProps> = ({
     try {
       const image = await Camera.getPhoto({
         quality: 50,
-        allowEditing: true,
+        allowEditing: false, // Alterado para false para evitar o prompt de edição/corte
         resultType: CameraResultType.Base64,
         source: CameraSource.Camera,
         saveToGallery: false
